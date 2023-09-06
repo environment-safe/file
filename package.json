@@ -19,17 +19,17 @@
             "require": "./dist/index.cjs"
         }
     },
-    "homepage": "null",
-    "description": "null",
+    "homepage": "https://github.com/environment-safe/file",
+    "description": "File abstraction for server and browser.",
     "keywords": [],
-    "author": "null <null>()",
+    "author": "Abbey Hawk Sparrow <@khrome> (http://patternweaver.com)",
     "contributors": [],
     "repository": {
         "type": "git",
-        "url": "null"
+        "url": "git@github.com:environment-safe/file.git"
     },
     "bugs": {
-        "url": "null"
+        "url": "https://github.com/environment-safe/file/issues"
     },
     "moka": {
         "firefox": {
