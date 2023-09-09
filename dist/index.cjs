@@ -3,7 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.save = exports.remove = exports.load = exports.listFiles = exports.list = exports.info = exports.handle = exports.exists = exports.File = void 0;
+exports.save = exports.remove = exports.pathJoin = exports.load = exports.listFiles = exports.list = exports.info = exports.handle = exports.fileBody = exports.exists = exports.File = void 0;
 var _browserOrNode = require("browser-or-node");
 var _buffer = require("./buffer.cjs");
 /*
@@ -20,11 +20,69 @@ const ensureRequire = ()=> (!internalRequire) && (internalRequire = mod.createRe
  * @typedef { object } JSON
  */
 
-const save = async (path, buffer, meta = {}) => {
+const inputQueue = [];
+const attachInputGenerator = eventType => {
+  const handler = event => {
+    if (inputQueue.length) {
+      const input = inputQueue.shift();
+      try {
+        input.handler(event, input.resolve, input.reject);
+      } catch (ex) {
+        inputQueue.unshift(input);
+      }
+    }
+  };
+  document.body.addEventListener(eventType, handler);
+};
+if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
+  attachInputGenerator('click');
+  // mousemove is cleanest, but seems unreliable
+  // attachInputGenerator('mousemove');
+}
+
+const wantInput = async handler => {
+  const promise = new Promise((resolve, reject) => {
+    inputQueue.push({
+      resolve,
+      reject,
+      handler
+    });
+  });
+  const input = await promise;
+  return await input;
+};
+const getFilePickerOptions = (name, path) => {
+  let suffix = name.split('.').pop();
+  if (suffix.length > 6) suffix = '';
+  const options = {
+    suggestedName: name
+  };
+  if (path) options.startIn = path;
+  if (suffix) {
+    const accept = {};
+    accept[mimesBySuffix[suffix]] = '.' + suffix;
+    options.types = [{
+      description: suffix,
+      accept
+    }];
+    options.excludeAcceptAllOption = true;
+  }
+  return options;
+};
+const save = async (name, dir, buffer, meta = {}) => {
   if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
-    // create a new handle
-    const newHandle = await window.showSaveFilePicker();
-    // create a FileSystemWritableFileStream to write to
+    const options = getFilePickerOptions(name, dir);
+    const newHandle = await wantInput((event, resolve, reject) => {
+      try {
+        window.showSaveFilePicker(options).then(thisHandle => {
+          resolve(thisHandle);
+        }).catch(ex => {
+          reject(ex);
+        });
+      } catch (ex) {
+        reject(ex);
+      }
+    });
     const writableStream = await newHandle.createWritable();
     // write our file
     await writableStream.write(buffer);
@@ -51,30 +109,71 @@ const mimesBySuffix = {
   cjs: 'text/javascript',
   css: 'text/css'
 };
-const handle = async (path, writable, cache = {}) => {
+const pathJoin = (...parts) => {
+  //returns buffer, eventually stream
+  if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
+    return parts.join('/');
+  } else {
+    // todo: impl
+  }
+};
+exports.pathJoin = pathJoin;
+const fileBody = async (path, dir, baseDir) => {
+  try {
+    let location = dir ? dir + path : path;
+    if (canonicalLocationToPath['darwin'][dir]) {
+      if (baseDir) {
+        throw new Error('custom directories unsupported');
+      } else {
+        location = 'file://' + handleCanonicalPath(dir, File.os, File.user);
+      }
+    }
+    console.log('L', location, new Error().stack);
+    const response = await fetch(location);
+    if (!response.ok) {
+      return null;
+    }
+    return response.body;
+  } catch (ex) {
+    return null;
+  }
+};
+exports.fileBody = fileBody;
+const handle = async (path, dir, writable, cache = {}) => {
   //returns buffer, eventually stream
   let suffix = path.split('.').pop();
   if (suffix.length > 6) suffix = '';
   if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
     if (cache && cache[path]) return cache[path];
-    const options = {};
-    if (suffix) {
-      const accept = {};
-      accept[mimesBySuffix[suffix]] = '.' + suffix;
-      options.types = [{
-        description: suffix,
-        accept
-      }];
-      options.excludeAcceptAllOption = true;
-    }
+    const options = getFilePickerOptions(path);
     try {
-      await fetch(path);
+      const response = await fileBody(path, dir);
+      if (response === null) throw new Error('File not found');
     } catch (ex) {
-      const newHandle = await window.showSaveFilePicker();
+      const newHandle = await wantInput((event, resolve, reject) => {
+        try {
+          window.showSaveFilePicker(options).then(thisHandle => {
+            resolve(thisHandle);
+          }).catch(ex => {
+            reject(ex);
+          });
+        } catch (ex) {
+          reject(ex);
+        }
+      });
       return newHandle;
     }
-    // eslint-disable-next-line no-undef
-    [fileHandle] = await window.showOpenFilePicker(options);
+    const fileHandle = await wantInput((event, resolve, reject) => {
+      try {
+        window.showOpenFilePicker(options).then(([handle]) => {
+          resolve(handle);
+        }).catch(ex => {
+          reject(ex);
+        });
+      } catch (ex) {
+        reject(ex);
+      }
+    });
     // eslint-disable-next-line no-undef
     if (cache) cache[path] = fileHandle;
     // eslint-disable-next-line no-undef
@@ -84,10 +183,10 @@ const handle = async (path, writable, cache = {}) => {
   }
 };
 exports.handle = handle;
-const load = async (path, cache) => {
+const load = async (path, dir, cache) => {
   //returns buffer, eventually stream
   if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
-    const fileHandle = handle(path, false, cache);
+    const fileHandle = await handle(path, dir, false, cache);
     const file = await fileHandle.getFile();
     const buffer = await file.buffer();
     return buffer;
@@ -96,28 +195,34 @@ const load = async (path, cache) => {
   }
 };
 exports.load = load;
-const exists = async (path, cache, incomingHandle) => {
+const exists = async (path, dir, cache, incomingHandle) => {
   //returns buffer, eventually stream
   if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
-    const fileHandle = incomingHandle || handle(path, true, cache);
-    const file = await fileHandle.getFile();
-    const buffer = await file.buffer();
-    return buffer;
+    if (incomingHandle) {
+      const fileHandle = incomingHandle;
+      const file = await fileHandle.getFile();
+      const buffer = await file.arrayBuffer();
+      return !!buffer;
+    } else {
+      console.log('fetch', path, dir);
+      const body = await fileBody(path, dir);
+      return body !== null;
+    }
   } else {
     // todo: impl
   }
 };
 exports.exists = exists;
-const remove = async (path, cache) => {
+const remove = async (path, dir, cache) => {
   if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
-    const fileHandle = handle(path, true, cache);
+    const fileHandle = await handle(path, dir, true, cache);
     if (fileHandle.remove) fileHandle.remove(); //non-standard, but supported
   } else {
     // todo: impl
   }
 };
 exports.remove = remove;
-const info = async (path, cache) => {
+const info = async (path, dir, cache) => {
   if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
     // todo: impl
   } else {
@@ -146,15 +251,17 @@ class File {
     const location = (path && path[0] === '/' ? `file:${path}` : path) || '/tmp/' + Math.floor(Math.random() * 10000);
     if (options.cache === true) options.cache = internalCache;
     this.options = options;
+    //one of: desktop, documents, downloads, music, pictures, videos
+    this.directory = options.directory || 'documents';
     this.path = location;
     this.buffer = new _buffer.FileBuffer();
   }
-  save() {
-    save(this.path, this.buffer, this.options);
+  async save() {
+    await save(this.path, this.directory, this.buffer, {});
     return this;
   }
-  load() {
-    this.buffer = load(this.path, this.options);
+  async load() {
+    this.buffer = await load(this.path, this.directory, this.options);
     return this;
   }
   body(str) {
@@ -162,16 +269,17 @@ class File {
     var enc = new TextEncoder(); // utf8
     const array = enc.encode(str);
     this.buffer = array.buffer;
-  }
-  info() {
-    return info(this.path);
-  }
-  'delete'() {
-    remove(this.path);
     return this;
   }
-  static exists(path) {
-    return exists(path);
+  async info() {
+    return await info(this.path, this.directory);
+  }
+  async 'delete'() {
+    await remove(this.path, this.directory);
+    return this;
+  }
+  static exists(path, directory) {
+    return exists(path, directory);
   }
 }
 exports.File = File;
@@ -191,4 +299,96 @@ Object.defineProperty(File, 'currentDirectory', {
   },
   enumerable: true,
   configurable: true
+});
+let user = '';
+Object.defineProperty(File, 'user', {
+  get() {
+    if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
+      return user || 'khrome'; //todo: something real;
+    } else {
+      return null;
+    }
+  },
+  set(newValue) {
+    user = newValue;
+  },
+  enumerable: true,
+  configurable: true
+});
+Object.defineProperty(File, 'os', {
+  get() {
+    if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
+      return 'darwin'; //todo: something real;
+    } else {
+      return null;
+    }
+  },
+  set(newValue) {
+    //do nothing
+  },
+  enumerable: true,
+  configurable: true
+});
+const canonicalLocationToPath = {
+  darwin: {
+    'desktop': '~/Desktop',
+    'documents': '~/Documents',
+    'downloads': '~/Downloads',
+    'music': '~/Music',
+    'pictures': '~/Pictures',
+    'home': '~/Pictures',
+    'videos': '~/Movies'
+  },
+  win: {},
+  linux: {}
+};
+const osToHome = {
+  darwin: '/home/${user}',
+  win: 'C:/',
+  linux: '/home/${user}'
+};
+
+/*const handlePath = (path, os, username)=>{
+    return path.replace('~', osToHome[os].replace('${user}', username));
+};*/
+
+const handleCanonicalPath = (name, os, username) => {
+  const path = canonicalLocationToPath[os][name];
+  return path.replace('~', osToHome[os].replace('${user}', username));
+};
+File.directory = {};
+Object.defineProperty(File.directory, 'current', {
+  get() {
+    if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
+      let path = window.location.pathname;
+      path = path.split('/');
+      path.pop(); // drop the top one
+      return path.join('/');
+    } else {
+      return process.cwd();
+    }
+  },
+  set(newValue) {
+    //do nothing
+  },
+  enumerable: true,
+  configurable: true
+});
+const directoryGet = type => {
+  if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
+    return handleCanonicalPath('home', File.os, File.user);
+  } else {
+    return process.cwd();
+  }
+};
+Object.keys(canonicalLocationToPath['darwin']).forEach(key => {
+  // register all available keys
+  Object.defineProperty(File.directory, key, {
+    enumerable: true,
+    configurable: true,
+    get() {
+      return directoryGet(key);
+    },
+    set(newValue) {}
+  });
 });
