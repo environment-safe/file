@@ -343,9 +343,9 @@ const canonicalLocationToPath = {
   linux: {}
 };
 const osToHome = {
-  darwin: '/home/${user}',
+  darwin: '/Users/${user}',
   win: 'C:/',
-  linux: '/home/${user}'
+  linux: '/Users/${user}'
 };
 
 /*const handlePath = (path, os, username)=>{

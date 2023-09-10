@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # ...
+        google-chrome  --allow-file-access-from-files
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+        # Mac OSX
+        open -a 'Google Chrome' --args -allow-file-access-from-files
+elif [[ "$OSTYPE" == "cygwin" ]]; then
+        # POSIX compatibility layer and Linux environment emulation for Windows
+        google-chrome  --allow-file-access-from-files
+elif [[ "$OSTYPE" == "msys" ]]; then
+        # Lightweight shell and GNU utilities compiled for Windows (part of MinGW)
+        C:\ ... \Application\chrome.exe --allow-file-access-from-files
+elif [[ "$OSTYPE" == "win32" ]]; then
+        # I'm not sure this can happen.
+        C:\ ... \Application\chrome.exe --allow-file-access-from-files
+elif [[ "$OSTYPE" == "freebsd"* ]]; then
+        # ...
+        google-chrome  --allow-file-access-from-files
+fi
