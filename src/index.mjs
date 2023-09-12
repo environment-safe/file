@@ -19,6 +19,7 @@ import * as fs from 'fs';
 const inputQueue = [];
 const attachInputGenerator = (eventType)=>{
     const handler = (event)=>{
+        console.log('handler');
         if(inputQueue.length){
             const input = inputQueue.shift();
             try{
@@ -28,11 +29,14 @@ const attachInputGenerator = (eventType)=>{
             }
         }
     };
-    document.body.addEventListener(eventType, handler);
+    window.addEventListener('load', (event) => {
+        document.body.addEventListener(eventType, handler, false);
+    });
+    //document.body.addEventListener(eventType, handler, false);
 };
 
 if(isBrowser || isJsDom){
-    attachInputGenerator('click');
+    attachInputGenerator('mousedown');
     // mousemove is cleanest, but seems unreliable
     // attachInputGenerator('mousemove');
 }
@@ -124,7 +128,8 @@ export const pathJoin = (...parts)=>{ //returns buffer, eventually stream
 };
 
 
-export const fileBody = async (path, dir, baseDir, allowRedirect)=>{
+//todo: should I remove export (no one should use this)?
+export const fileBody = async (path, dir, baseDir, allowRedirect, forceReturn)=>{
     try{
         //let location = dir?dir+ '/' + path:path; //todo: looser handling
         let location = makeLocation(path, dir);
@@ -137,11 +142,12 @@ export const fileBody = async (path, dir, baseDir, allowRedirect)=>{
         }
         const response = await fetch(location);
         const text = await response.text();
-        if(!(response.ok || (allowRedirect && response.redirected))){
+        if(!(response.ok || (allowRedirect && response.redirected) || forceReturn)){
             return null;
         }
         return text;
     }catch(ex){
+        //console.log(location, ex);
         return null;
     }
 };
@@ -256,6 +262,23 @@ export const info = async (path, dir, cache)=>{
 export const list = async (path, cache)=>{
     if(isBrowser || isJsDom){
         // todo: impl
+        switch(File.agent.name){
+            case 'chrome': {
+                const page = await fileBody('', path, null, null, true);
+                let rows = (page && page.match( /<script>addRow\((.*)\);<\/script>/g ) ) || [];
+                rows = rows.map((row)=>{
+                    return row.match( /<script>addRow\((.*)\);<\/script>/ )[1];
+                });
+                const jsonData = `[[${rows.join('], [')}]]`;
+                const data = JSON.parse(jsonData);
+                return data.map((meta)=>{
+                    return meta[0];
+                });
+                //TODO: apache fallback
+                //break;
+            }
+            default: throw new Error(`Usupported Browser: ${File.os}`);
+        }
     }else{
         // todo: impl
     }
@@ -312,12 +335,16 @@ export class File{
     }
     
     async 'delete'(){
-        await remove(this.path, this.directory, this.option);
+        await remove(this.path, this.directory, this.options);
         return this;
     }
     
     static exists(path, directory){
         return exists(path, directory);
+    }
+    
+    static list(path, cache){
+        return list(path, cache);
     }
 }
 
@@ -408,6 +435,76 @@ Object.defineProperty(File.directory, 'current', {
             return path .join('/');
         }else{
             return process.cwd();
+        }
+    },
+    set(newValue) {
+        //do nothing
+    },
+    enumerable: true,
+    configurable: true,
+});
+
+Object.defineProperty(File, 'agent', {
+    get() {
+        if(isBrowser || isJsDom){
+            //var nVer = navigator.appVersion;
+            var nAgt = navigator.userAgent;
+            var browserName  = navigator.appName;
+            var fullVersion  = ''+parseFloat(navigator.appVersion); 
+            var majorVersion = parseInt(navigator.appVersion,10);
+            var nameOffset,verOffset,ix;
+            
+            // In Opera, the true version is after "Opera" or after "Version"
+            if ((verOffset=nAgt.indexOf('Opera'))!=-1) {
+                browserName = 'Opera';
+                fullVersion = nAgt.substring(verOffset+6);
+                if ((verOffset=nAgt.indexOf('Version'))!=-1) 
+                    fullVersion = nAgt.substring(verOffset+8);
+            }
+            // In MSIE, the true version is after 'MSIE' in userAgent
+            else if ((verOffset=nAgt.indexOf('MSIE'))!=-1) {
+                browserName = 'Microsoft Internet Explorer';
+                fullVersion = nAgt.substring(verOffset+5);
+            }
+            // In Chrome, the true version is after 'Chrome' 
+            else if ((verOffset=nAgt.indexOf('Chrome'))!=-1) {
+                browserName = 'Chrome';
+                fullVersion = nAgt.substring(verOffset+7);
+            }
+            // In Safari, the true version is after 'Safari' or after 'Version' 
+            else if ((verOffset=nAgt.indexOf('Safari'))!=-1) {
+                browserName = 'Safari';
+                fullVersion = nAgt.substring(verOffset+7);
+                if ((verOffset=nAgt.indexOf('Version'))!=-1) 
+                    fullVersion = nAgt.substring(verOffset+8);
+            }
+            // In Firefox, the true version is after 'Firefox' 
+            else if ((verOffset=nAgt.indexOf('Firefox'))!=-1) {
+                browserName = 'Firefox';
+                fullVersion = nAgt.substring(verOffset+8);
+            }
+            // In most other browsers, 'name/version' is at the end of userAgent 
+            else if ( (nameOffset=nAgt.lastIndexOf(' ')+1) < (verOffset=nAgt.lastIndexOf('/')) ) {
+                browserName = nAgt.substring(nameOffset,verOffset);
+                fullVersion = nAgt.substring(verOffset+1);
+                if (browserName.toLowerCase()==browserName.toUpperCase()) {
+                    browserName = navigator.appName;
+                }
+            }
+            // trim the fullVersion string at semicolon/space if present
+            if ((ix=fullVersion.indexOf(';'))!=-1)
+                fullVersion=fullVersion.substring(0,ix);
+            if ((ix=fullVersion.indexOf(' '))!=-1)
+                fullVersion=fullVersion.substring(0,ix);
+            
+            majorVersion = parseInt(''+fullVersion,10);
+            if (isNaN(majorVersion)) {
+                fullVersion  = ''+parseFloat(navigator.appVersion); 
+                majorVersion = parseInt(navigator.appVersion,10);
+            }
+            return { name: browserName.toLowerCase(), version: fullVersion, major: majorVersion };
+        }else{
+            return {};
         }
     },
     set(newValue) {

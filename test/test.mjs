@@ -19,7 +19,15 @@ describe('module', ()=>{
             const body = (await newFile.load()).body();
             const str = body.cast('string');
             str.should.equal('{"foo":"bar"}');
-            //await file.delete();
+            await file.delete();
+        });
+        
+        it('lists file in user\'s documents dir', async function(){
+            //assumes you have some file in your documents directory
+            const list = await File.list('documents');
+            const file = new File(list[0]);
+            await file.load();
+            file.body().cast('string').length.should.be.above(1);
         });
     });
 });

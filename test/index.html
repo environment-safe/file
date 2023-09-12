@@ -1,9 +1,9 @@
-
-        <html>
-            <head>
-                <title>Moka Tests</title>
-                <link rel="stylesheet" href="../node_modules/mocha/mocha.css">
-                <script type="importmap">
+<!DOCTYPE html>
+<html>
+        <head>
+            <title>Moka Tests</title>
+            <link rel="stylesheet" href="../node_modules/mocha/mocha.css">
+            <script type="importmap">
     {
         "imports": {
                 "express": "../node_modules/@open-automaton/moka/src/stub.mjs",
@@ -431,7 +431,6 @@
         <script src="../node_modules/mocha/mocha.js"></script>
         <script>mocha.setup('bdd')</script>
         <script type="module" src="./test.mjs"></script>
-                
         <script type="module">
             mocha.checkLeaks();
             mocha.globals([]);

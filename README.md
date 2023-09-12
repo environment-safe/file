@@ -1,11 +1,22 @@
 @environment-safe/file
 ============================
-This is an experimental interface to provide a common file abstraction from client to server
+This is an experimental interface to provide a common file abstraction from client to server.
 
-In order to be useful, linux and windows must also be tested.
+The design goal is to give the widest possible filesystem access, while minimizing the number of client interactions (via interaction initiation *or* popup) using a common API.
 
 Usage
 -----
+
+Roadmap
+-------
+
+- [ ] - test existing suite in windows + linux
+- [ ] - safari directory returns
+- [ ] - firefox directory returns
+- [ ] - edge directory returns
+- [ ] - safari directory returns
+- [ ] - opera directory returns
+- [ ] - streaming support
 
 Testing
 -------
