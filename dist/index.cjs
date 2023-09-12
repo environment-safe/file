@@ -6,6 +6,9 @@ Object.defineProperty(exports, "__esModule", {
 exports.save = exports.remove = exports.pathJoin = exports.load = exports.listFiles = exports.list = exports.info = exports.handle = exports.fileBody = exports.exists = exports.File = void 0;
 var _browserOrNode = require("browser-or-node");
 var _buffer = require("./buffer.cjs");
+var fs = _interopRequireWildcard(require("fs"));
+function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function (nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
+function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || typeof obj !== "object" && typeof obj !== "function") { return { default: obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj.default = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
 /*
 import { isBrowser, isJsDom } from 'browser-or-node';
 import * as mod from 'module';
@@ -73,9 +76,9 @@ const makeLocation = (path, dir) => {
   return dir ? handleCanonicalPath(dir, File.os, File.user) + '/' + path : path;
 };
 const save = async (name, dir, buffer, meta = {}) => {
+  const location = makeLocation(name, dir);
   if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
     const options = getFilePickerOptions(name, dir);
-    const location = makeLocation(name, dir);
     const newHandle = await wantInput(location, (event, resolve, reject) => {
       try {
         window.showSaveFilePicker(options).then(thisHandle => {
@@ -93,7 +96,12 @@ const save = async (name, dir, buffer, meta = {}) => {
     // close the file and write the contents to disk.
     await writableStream.close();
   } else {
-    //todo: implement
+    return await new Promise((resolve, reject) => {
+      fs.writeFile(location, buffer, err => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
   }
 };
 exports.save = save;
@@ -191,11 +199,8 @@ const handle = async (path, dir, writable, cache = {}) => {
 exports.handle = handle;
 const load = async (path, dir, cache) => {
   //returns buffer, eventually stream
+  const location = makeLocation(path, dir);
   if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
-    //const fileHandle = await handle(path, dir, false, cache);
-    //const file = await fileHandle.getFile();
-    //const buffer = await file.buffer();
-    const location = makeLocation(path, dir);
     try {
       const response = await fetch(location);
       if (!response) {
@@ -208,7 +213,12 @@ const load = async (path, dir, cache) => {
       return [];
     }
   } else {
-    // todo: impl
+    return await new Promise((resolve, reject) => {
+      fs.readFile(location, (err, body) => {
+        if (err) return reject(err);
+        resolve(body);
+      });
+    });
   }
 };
 exports.load = load;
@@ -225,7 +235,13 @@ const exists = async (path, dir, cache, incomingHandle) => {
       return body !== null;
     }
   } else {
-    // todo: impl
+    return await new Promise((resolve, reject) => {
+      const location = makeLocation(path, dir);
+      fs.stat(location, (err, res) => {
+        if (err) resolve(false);
+        resolve(true);
+      });
+    });
   }
 };
 exports.exists = exists;
@@ -328,9 +344,10 @@ Object.defineProperty(File, 'user', {
     if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
       return user || 'khrome'; //todo: something real;
     } else {
-      return null;
+      return user || 'khrome'; //todo: something real;
     }
   },
+
   set(newValue) {
     user = newValue;
   },
@@ -342,7 +359,7 @@ Object.defineProperty(File, 'os', {
     if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
       return 'darwin'; //todo: something real;
     } else {
-      return null;
+      return 'darwin';
     }
   },
   set(newValue) {

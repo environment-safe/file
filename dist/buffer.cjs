@@ -56,7 +56,22 @@ if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
     //todo: convert encoding to byte offset
   };
 } else {
-  InternalBuffer = Buffer;
+  InternalBuffer = function () {};
+  InternalBuffer.from = (ob = '') => {
+    return Buffer.from(ob);
+  };
+  //InternalBuffer = Buffer;
+  InternalBuffer.to = (type, buffer) => {
+    switch (type) {
+      case 'object':
+        return buffer.toJSON();
+      case 'array':
+        return buffer.toJSON();
+      case 'string':
+        return buffer.toString();
+      case '':
+    }
+  };
 }
 const FileBuffer = InternalBuffer;
 exports.FileBuffer = FileBuffer;

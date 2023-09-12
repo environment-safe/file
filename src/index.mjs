@@ -13,7 +13,8 @@ const ensureRequire = ()=> (!internalRequire) && (internalRequire = mod.createRe
  */
  
 import { isBrowser, isJsDom } from 'browser-or-node';
-import { FileBuffer as Buffer } from './buffer.mjs';
+import { FileBuffer } from './buffer.mjs';
+import * as fs from 'fs';
 
 const inputQueue = [];
 const attachInputGenerator = (eventType)=>{
@@ -68,9 +69,9 @@ const makeLocation = (path, dir)=>{
 };
 
 export const save = async (name, dir, buffer, meta={})=>{
+    const location = makeLocation(name, dir);
     if(isBrowser || isJsDom){
         const options = getFilePickerOptions(name, dir);
-        const location = makeLocation(name, dir);
         const newHandle = await wantInput(location, (event, resolve, reject)=>{
             try{
                 window.showSaveFilePicker(options).then((thisHandle)=>{
@@ -88,7 +89,12 @@ export const save = async (name, dir, buffer, meta={})=>{
         // close the file and write the contents to disk.
         await writableStream.close();
     }else{
-        //todo: implement
+        return await new Promise((resolve, reject)=>{
+            fs.writeFile(location, buffer, (err)=>{
+                if(err) return reject(err);
+                resolve();
+            });
+        });
     }
 };
 
@@ -185,11 +191,8 @@ export const handle = async (path, dir, writable, cache={})=>{ //returns buffer,
 };
 
 export const load = async (path, dir, cache)=>{ //returns buffer, eventually stream
+    const location = makeLocation(path, dir);
     if(isBrowser || isJsDom){
-        //const fileHandle = await handle(path, dir, false, cache);
-        //const file = await fileHandle.getFile();
-        //const buffer = await file.buffer();
-        const location = makeLocation(path, dir);
         try{
             const response = await fetch(location);
             if(!response){
@@ -202,7 +205,12 @@ export const load = async (path, dir, cache)=>{ //returns buffer, eventually str
             return [];
         }
     }else{
-        // todo: impl
+        return await new Promise((resolve, reject)=>{
+            fs.readFile(location, (err, body)=>{
+                if(err) return reject(err);
+                resolve(body);
+            });
+        });
     }
 };
 
@@ -218,7 +226,13 @@ export const exists = async (path, dir, cache, incomingHandle)=>{ //returns buff
             return body !== null;
         }
     }else{
-        // todo: impl
+        return await new Promise((resolve, reject)=>{
+            const location = makeLocation(path, dir);
+            fs.stat(location, (err, res)=>{
+                if(err) resolve(false);
+                resolve(true);
+            });
+        });
     }
 };
 
@@ -266,7 +280,7 @@ export class File{
         //one of: desktop, documents, downloads, music, pictures, videos
         this.directory = options.directory || 'documents';
         this.path = location;
-        this.buffer = new Buffer();
+        this.buffer = new FileBuffer();
     }
     
     async save(){
@@ -278,16 +292,16 @@ export class File{
         const dir = this.path.indexOf('/') === -1?this.directory:'';
         this.buffer = await load(this.path, dir, this.options);
         this.buffer.cast = (type)=>{
-            return Buffer.to(type, this.buffer);
+            return FileBuffer.to(type, this.buffer);
         };
         return this;
     }
     
     body(value){
         if(value === null || value === undefined) return this.buffer;
-        this.buffer = Buffer.from(value);
+        this.buffer = FileBuffer.from(value);
         this.buffer.cast = (type)=>{
-            return Buffer.to(type, this.buffer);
+            return FileBuffer.to(type, this.buffer);
         };
         if(value) return this;
         return this.buffer;
@@ -330,7 +344,7 @@ Object.defineProperty(File, 'user', {
         if(isBrowser || isJsDom){
             return user || 'khrome'; //todo: something real;
         }else{
-            return null;
+            return user || 'khrome'; //todo: something real;
         }
     },
     set(newValue) {
@@ -345,7 +359,7 @@ Object.defineProperty(File, 'os', {
         if(isBrowser || isJsDom){
             return 'darwin'; //todo: something real;
         }else{
-            return null;
+            return 'darwin';
         }
     },
     set(newValue) {
