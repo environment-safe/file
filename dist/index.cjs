@@ -40,7 +40,7 @@ if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
   // attachInputGenerator('mousemove');
 }
 
-const wantInput = async handler => {
+const wantInput = async (id, handler, cache) => {
   const promise = new Promise((resolve, reject) => {
     inputQueue.push({
       resolve,
@@ -69,10 +69,14 @@ const getFilePickerOptions = (name, path) => {
   }
   return options;
 };
+const makeLocation = (path, dir) => {
+  return dir ? handleCanonicalPath(dir, File.os, File.user) + '/' + path : path;
+};
 const save = async (name, dir, buffer, meta = {}) => {
   if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
     const options = getFilePickerOptions(name, dir);
-    const newHandle = await wantInput((event, resolve, reject) => {
+    const location = makeLocation(name, dir);
+    const newHandle = await wantInput(location, (event, resolve, reject) => {
       try {
         window.showSaveFilePicker(options).then(thisHandle => {
           resolve(thisHandle);
@@ -82,7 +86,7 @@ const save = async (name, dir, buffer, meta = {}) => {
       } catch (ex) {
         reject(ex);
       }
-    });
+    }, meta.cache);
     const writableStream = await newHandle.createWritable();
     // write our file
     await writableStream.write(buffer);
@@ -118,22 +122,23 @@ const pathJoin = (...parts) => {
   }
 };
 exports.pathJoin = pathJoin;
-const fileBody = async (path, dir, baseDir) => {
+const fileBody = async (path, dir, baseDir, allowRedirect) => {
   try {
-    let location = dir ? dir + path : path;
+    //let location = dir?dir+ '/' + path:path; //todo: looser handling
+    let location = makeLocation(path, dir);
     if (canonicalLocationToPath['darwin'][dir]) {
       if (baseDir) {
         throw new Error('custom directories unsupported');
       } else {
-        location = 'file://' + handleCanonicalPath(dir, File.os, File.user);
+        location = 'file://' + handleCanonicalPath(dir, File.os, File.user) + '/' + path;
       }
     }
-    console.log('L', location, new Error().stack);
     const response = await fetch(location);
-    if (!response.ok) {
+    const text = await response.text();
+    if (!(response.ok || allowRedirect && response.redirected)) {
       return null;
     }
-    return response.body;
+    return text;
   } catch (ex) {
     return null;
   }
@@ -143,6 +148,7 @@ const handle = async (path, dir, writable, cache = {}) => {
   //returns buffer, eventually stream
   let suffix = path.split('.').pop();
   if (suffix.length > 6) suffix = '';
+  const location = makeLocation(path, dir);
   if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
     if (cache && cache[path]) return cache[path];
     const options = getFilePickerOptions(path);
@@ -150,7 +156,7 @@ const handle = async (path, dir, writable, cache = {}) => {
       const response = await fileBody(path, dir);
       if (response === null) throw new Error('File not found');
     } catch (ex) {
-      const newHandle = await wantInput((event, resolve, reject) => {
+      const newHandle = await wantInput(location, (event, resolve, reject) => {
         try {
           window.showSaveFilePicker(options).then(thisHandle => {
             resolve(thisHandle);
@@ -163,7 +169,7 @@ const handle = async (path, dir, writable, cache = {}) => {
       });
       return newHandle;
     }
-    const fileHandle = await wantInput((event, resolve, reject) => {
+    const fileHandle = await wantInput(location, (event, resolve, reject) => {
       try {
         window.showOpenFilePicker(options).then(([handle]) => {
           resolve(handle);
@@ -173,9 +179,9 @@ const handle = async (path, dir, writable, cache = {}) => {
       } catch (ex) {
         reject(ex);
       }
-    });
+    }, cache);
     // eslint-disable-next-line no-undef
-    if (cache) cache[path] = fileHandle;
+    if (cache) cache[location] = fileHandle;
     // eslint-disable-next-line no-undef
     return fileHandle;
   } else {
@@ -186,10 +192,21 @@ exports.handle = handle;
 const load = async (path, dir, cache) => {
   //returns buffer, eventually stream
   if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
-    const fileHandle = await handle(path, dir, false, cache);
-    const file = await fileHandle.getFile();
-    const buffer = await file.buffer();
-    return buffer;
+    //const fileHandle = await handle(path, dir, false, cache);
+    //const file = await fileHandle.getFile();
+    //const buffer = await file.buffer();
+    const location = makeLocation(path, dir);
+    try {
+      const response = await fetch(location);
+      if (!response) {
+        return [];
+      }
+      const buffer = await response.arrayBuffer();
+      buffer;
+      return buffer;
+    } catch (ex) {
+      return [];
+    }
   } else {
     // todo: impl
   }
@@ -204,7 +221,6 @@ const exists = async (path, dir, cache, incomingHandle) => {
       const buffer = await file.arrayBuffer();
       return !!buffer;
     } else {
-      console.log('fetch', path, dir);
       const body = await fileBody(path, dir);
       return body !== null;
     }
@@ -257,25 +273,31 @@ class File {
     this.buffer = new _buffer.FileBuffer();
   }
   async save() {
-    await save(this.path, this.directory, this.buffer, {});
+    await save(this.path, this.directory, this.buffer, this.options);
     return this;
   }
   async load() {
-    this.buffer = await load(this.path, this.directory, this.options);
+    const dir = this.path.indexOf('/') === -1 ? this.directory : '';
+    this.buffer = await load(this.path, dir, this.options);
+    this.buffer.cast = type => {
+      return _buffer.FileBuffer.to(type, this.buffer);
+    };
     return this;
   }
-  body(str) {
-    if (str === null) return this.buffer;
-    var enc = new TextEncoder(); // utf8
-    const array = enc.encode(str);
-    this.buffer = array.buffer;
-    return this;
+  body(value) {
+    if (value === null || value === undefined) return this.buffer;
+    this.buffer = _buffer.FileBuffer.from(value);
+    this.buffer.cast = type => {
+      return _buffer.FileBuffer.to(type, this.buffer);
+    };
+    if (value) return this;
+    return this.buffer;
   }
   async info() {
     return await info(this.path, this.directory);
   }
   async 'delete'() {
-    await remove(this.path, this.directory);
+    await remove(this.path, this.directory, this.option);
     return this;
   }
   static exists(path, directory) {

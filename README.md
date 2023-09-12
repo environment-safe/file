@@ -1,6 +1,8 @@
-file
+@environment-safe/file
 ============================
-null
+This is an experimental interface to provide a common file abstraction from client to server
+
+In order to be useful, linux and windows must also be tested.
 
 Usage
 -----

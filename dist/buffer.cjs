@@ -25,15 +25,24 @@ const ensureRequire = ()=> (!internalRequire) && (internalRequire = mod.createRe
 let InternalBuffer = null;
 if (_browserOrNode.isBrowser || _browserOrNode.isJsDom) {
   InternalBuffer = function () {};
+  var enc = new TextEncoder();
+  var dec = new TextDecoder('utf-8');
   InternalBuffer.from = ob => {
     const type = Array.isArray(ob) ? 'array' : typeof ob;
     switch (type) {
       case 'object':
       case 'array':
       case 'string':
-        var enc = new TextEncoder(); // utf8
-        var array = enc.encode(ob);
-        return array.buffer;
+        return enc.encode(ob).buffer;
+      case '':
+    }
+  };
+  InternalBuffer.to = (type, buffer) => {
+    switch (type) {
+      case 'object':
+      case 'array':
+      case 'string':
+        return dec.decode(buffer);
       case '':
     }
   };

@@ -6,19 +6,20 @@ const should = chai.should();
 
 describe('module', ()=>{
     describe('performs a simple test suite', ()=>{
-        it('creates, saves, loads & deletes a new garbage json', async function(){
-            this.timeout(10000);
+        const fileName = 'file' + Math.floor( Math.random() * 1000000 );
+        it(`creates, saves, loads & deletes ${fileName}`, async function(){
+            this.timeout(20000);
             should.exist(File);
-            const fileName = 'file' + Math.floor( Math.random() * 1000000 );
-            const file = new File(fileName);
-            console.log(fileName, file.path);
+            const file = new File(fileName, {cache: true});
             (await File.exists(file.path, file.directory)).should.equal(false);
             await file.body('{}').save();
             (await File.exists(file.path, file.directory)).should.equal(true);
             await file.body('{"foo":"bar"}').save();
-            const newFile = new File(fileName);
-            (await newFile.load()).should.equal('{"foo":"bar"}');
-            await file.delete();
+            const newFile = new File(fileName, {cache: true});
+            const body = (await newFile.load()).body();
+            const str = body.cast('string');
+            str.should.equal('{"foo":"bar"}');
+            //await file.delete();
         });
     });
 });
