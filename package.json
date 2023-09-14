@@ -1,5 +1,5 @@
 {
-    "name": "file",
+    "name": "@environment-safe/file",
     "version": "0.0.1",
     "type": "module",
     "main": "dist/index.mjs",
