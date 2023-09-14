@@ -15,11 +15,11 @@ const ensureRequire = ()=> (!internalRequire) && (internalRequire = mod.createRe
 import { isBrowser, isJsDom } from 'browser-or-node';
 import { FileBuffer } from './buffer.mjs';
 import * as fs from 'fs';
+import * as path from 'path';
 
 const inputQueue = [];
 const attachInputGenerator = (eventType)=>{
     const handler = (event)=>{
-        console.log('handler');
         if(inputQueue.length){
             const input = inputQueue.shift();
             try{
@@ -69,6 +69,29 @@ const getFilePickerOptions = (name, path)=>{
 };
 
 const makeLocation = (path, dir)=>{
+    if(dir && dir[0] === '.'){
+        if(dir[1] === '.'){
+            if(dir[2] === '/' && dir[3]){
+                return pathJoin(File.directory.current, '..', dir.substring(3), path);
+            }else{
+                if(dir[2]){
+                    return pathJoin(File.directory.current, '..', dir.substring(3), path);
+                }else{
+                    return pathJoin(File.directory.current, '..', path);
+                }
+            }
+        }else{
+            if(dir[1] === '/'){
+                return pathJoin(File.directory.current, dir.substring(2), path);
+            }else{
+                if(dir[1]){
+                    return pathJoin(File.directory.current, dir, path);
+                }else{
+                    return pathJoin(File.directory.current, path);
+                }
+            }
+        }
+    }
     return dir?handleCanonicalPath(dir, File.os, File.user)+ '/' + path:path;
 };
 
@@ -123,7 +146,7 @@ export const pathJoin = (...parts)=>{ //returns buffer, eventually stream
     if(isBrowser || isJsDom){
         return parts.join('/');
     }else{
-        // todo: impl
+        return path.join.apply(path, parts);
     }
 };
 
@@ -202,13 +225,13 @@ export const load = async (path, dir, cache)=>{ //returns buffer, eventually str
         try{
             const response = await fetch(location);
             if(!response){
-                return [];
+                return new ArrayBuffer();
             }
             const buffer = await response.arrayBuffer();
             buffer;
             return buffer;
         }catch(ex){
-            return [];
+            return new ArrayBuffer();
         }
     }else{
         return await new Promise((resolve, reject)=>{
@@ -259,7 +282,7 @@ export const info = async (path, dir, cache)=>{
     }
 };
 
-export const list = async (path, cache)=>{
+export const list = async (path, options={})=>{
     if(isBrowser || isJsDom){
         // todo: impl
         switch(File.agent.name){
@@ -271,8 +294,33 @@ export const list = async (path, cache)=>{
                 });
                 const jsonData = `[[${rows.join('], [')}]]`;
                 const data = JSON.parse(jsonData);
-                return data.map((meta)=>{
-                    return meta[0];
+                let results = data.map((meta)=>{
+                    return {
+                        name: meta[0],
+                        isFile: ()=>{
+                            return !!meta[2];
+                        }
+                    };
+                });
+                if(Object.keys(options).length){
+                    if(options.files === false){
+                        results = results.filter((file)=>{
+                            return !file.isFile();
+                        });
+                    }
+                    if(options.directories === false){
+                        results = results.filter((file)=>{
+                            return file.isFile();
+                        });
+                    }
+                    if(!options.hidden){
+                        results = results.filter((file)=>{
+                            return file !== '.' && file !== '..';
+                        });
+                    }
+                }
+                return results.map((file)=>{
+                    return file.name;
                 });
                 //TODO: apache fallback
                 //break;
@@ -280,7 +328,34 @@ export const list = async (path, cache)=>{
             default: throw new Error(`Usupported Browser: ${File.os}`);
         }
     }else{
-        // todo: impl
+        //todo: platform safe separator
+        const target = path.indexOf('/') === -1?makeLocation('', path):path;
+        return await new Promise((resolve, reject)=>{
+            fs.readdir(target, { withFileTypes: true }, (err, files)=>{
+                if(err) return reject(err);
+                let results = files;
+                if(Object.keys(options).length){
+                    if(options.files === false){
+                        results = results.filter((file)=>{
+                            return !file.isFile();
+                        });
+                    }
+                    if(options.directories === false){
+                        results = results.filter((file)=>{
+                            return file.isFile();
+                        });
+                    }
+                    if(!options.hidden){
+                        results = results.filter((file)=>{
+                            return file !== '.' && file !== '..';
+                        });
+                    }
+                }
+                resolve(results.map((file)=>{
+                    return file.name;
+                }));
+            });
+        });
     }
 };
 
@@ -296,12 +371,14 @@ export const listFiles = (path)=>{
 
 export class File{
     constructor(path, options={}){
+        //todo: clean this rats nest up
         const location = ( (path && path[0] === '/')?`file:${path}`:path ) || 
+            ( (!path) && options.directory && handleCanonicalPath(options.directory, File.os, File.user) ) ||
             ('/tmp/' + Math.floor( Math.random() * 10000 ));
         if(options.cache === true) options.cache = internalCache;
         this.options = options;
         //one of: desktop, documents, downloads, music, pictures, videos
-        this.directory = options.directory || 'documents';
+        this.directory = options.directory || '.';
         this.path = location;
         this.buffer = new FileBuffer();
     }
@@ -343,28 +420,10 @@ export class File{
         return exists(path, directory);
     }
     
-    static list(path, cache){
-        return list(path, cache);
+    static list(path, options){
+        return list(path, options);
     }
 }
-
-Object.defineProperty(File, 'currentDirectory', {
-    get() {
-        if(isBrowser || isJsDom){
-            let path = window.location.pathname;
-            path = path.split('/');
-            path.pop(); // drop the top one
-            return path .join('/');
-        }else{
-            return process.cwd();
-        }
-    },
-    set(newValue) {
-        //do nothing
-    },
-    enumerable: true,
-    configurable: true,
-});
 let user = '';
 Object.defineProperty(File, 'user', {
     get() {
@@ -429,10 +488,16 @@ File.directory = {};
 Object.defineProperty(File.directory, 'current', {
     get() {
         if(isBrowser || isJsDom){
-            let path = window.location.pathname;
-            path = path.split('/');
-            path.pop(); // drop the top one
-            return path .join('/');
+            const base = document.getElementsByTagName('base')[0];
+            let basedir = null;
+            if(base && (basedir = base.getAttribute('href'))){
+                return basedir;
+            }else{
+                let path = window.location.pathname;
+                path = path.split('/');
+                path.pop(); // drop the top one
+                return path .join('/');
+            }
         }else{
             return process.cwd();
         }

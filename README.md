@@ -1,11 +1,53 @@
 @environment-safe/file
-============================
+======================
 This is an experimental interface to provide a common file abstraction from client to server.
 
 The design goal is to give the widest possible filesystem access, while minimizing the number of client interactions (via interaction initiation *or* popup) using a common API.
 
 Usage
 -----
+
+### listing
+
+You can list contents from an arbitrary location or from one of a few predefined locations (`desktop`, `documents`, `downloads`, `music`, `pictures`, `videos`). For example to list all the files in your `documents` directory:
+
+```javascript
+const list = await File.list('documents', {
+    files: true,
+    directories: false
+});
+```
+
+You can load a file relative to the current directory, for example `foo.bar`
+
+```javascript
+const file = new File('foo.bar');
+//or
+const file = new File('foo.bar', '.');
+```
+
+You can load a file relative to the a predefined directory, for example `baz.mpg` in `videos`:
+```javascript
+const file = new File('baz.mpg', 'videos');
+```
+
+You can load a file relative to the a fully specified directory, for example `baz.info` in `/Users/me/`:
+```javascript
+const file = new File('baz.info', '/Users/me/');
+```
+
+You can load a file relative to the a relative directory, for example `package.json` in `../node_modules/dep`:
+```javascript
+const file = new File('package.json', '../node_modules/dep');
+```
+
+You can load a file directly from a fully specified path:
+```javascript
+const file = new File('/Users/me/file.ext');
+```
+
+Other scenarios may work in isolated circumstances, but are not supported client/server.
+
 
 Roadmap
 -------
@@ -14,7 +56,7 @@ Roadmap
 - [ ] - safari directory returns
 - [ ] - firefox directory returns
 - [ ] - edge directory returns
-- [ ] - safari directory returns
+- [ ] - apache directory returns
 - [ ] - opera directory returns
 - [ ] - streaming support
 
