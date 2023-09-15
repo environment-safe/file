@@ -18,6 +18,7 @@ const list = await File.list('documents', {
 });
 ```
 
+### loading
 You can load a file relative to the current directory, for example `foo.bar`
 
 ```javascript
