@@ -7,6 +7,17 @@ The design goal is to give the widest possible filesystem access, while minimizi
 Usage
 -----
 
+If you want relative URLs to work, you must include a base tag in your html with a `filesystem` attribute that denotes the filesystem path of the server root.
+
+```html
+<html>
+    <head>
+        <base filesystem="/Users/foo/webroot/">
+    </head>
+    <body></body>
+</html>
+```
+
 ### listing
 
 You can list contents from an arbitrary location or from one of a few predefined locations (`desktop`, `documents`, `downloads`, `music`, `pictures`, `videos`). For example to list all the files in your `documents` directory:

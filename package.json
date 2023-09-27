@@ -58,6 +58,7 @@
         "stubs": [
             "express",
             "module",
+            "fs",
             "path"
         ],
         "shims": {
@@ -73,7 +74,7 @@
         "@environment-safe/chai": "^0.1.0",
         "@environment-safe/commonjs-builder": "^0.0.3",
         "@environment-safe/jsdoc-builder": "^0.0.2",
-        "@open-automaton/moka": "^0.0.4",
+        "@open-automaton/moka": "^0.1.0",
         "babel-plugin-search-and-replace": "^1.1.1",
         "babel-plugin-transform-import-meta": "^2.2.0",
         "chai": "^4.3.7",
@@ -102,6 +103,8 @@
         "prepare": "husky install"
     },
     "dependencies": {
+        "@environment-safe/package": "^0.2.0",
+        "@environment-safe/runtime-context": "^0.0.1",
         "browser-or-node": "^2.1.1"
     }
 }
