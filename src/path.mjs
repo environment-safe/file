@@ -18,13 +18,6 @@ import {
     runtime // server runtime name or browser name
 } from '@environment-safe/runtime-context';
 
-let pathRoot = null;
-if(isClient){
-    pathRoot = process.cwd();
-}else{
-    
-}
-
 const knownLocationsMap = {
     darwin : {
         'desktop': '~/Desktop', 
@@ -40,9 +33,12 @@ const knownLocationsMap = {
     win : {},
     linux : {},
 };
+knownLocationsMap['mac os x'] = knownLocationsMap.darwin;
+knownLocationsMap['windows'] = knownLocationsMap.win;
 
 const canonicalLocationToPath = (location, username)=>{
     const os = osName;
+    console.log('osName', os, knownLocationsMap[os], knownLocationsMap[os][location])
     return (
         (knownLocationsMap[os] && knownLocationsMap[os][location]) || location
     ).replace('~', osToHome[os].replace('${user}', username));
@@ -53,100 +49,59 @@ const osToHome = {
     win : 'C:\\Users\\${user}',
     linux : '/Users/${user}',
 };
+osToHome['mac os x'] = osToHome.darwin;
+osToHome['windows'] = osToHome.win;
 
 const join = (osName, ...parts)=>{
     if(osName === 'windows') return parts.join('\\');
     return parts.join('/');
 };
 
+const formatWindows = (parsed)=>{
+    return `${parsed.dir}\\${parsed.name}`;
+};
+
+//todo: audit the posix code
 const windowsRelative = (from, to)=>{
+    console.log('WR', from, to);
     if (from === to) return '';
-    
-    //from = posix.resolve(from);
-    //to = posix.resolve(to);
-    const prefix = from.substring(0,2);
-    from = from.substring(2);
-    to = to.substring(2);
-    
-    if (from === to) return '';
-    
-    // Trim any leading backslashes
-    var fromStart = 1;
-    for (; fromStart < from.length; ++fromStart) {
-      if (from.charCodeAt(fromStart) !== 92 /*/*/)
-        break;
+    const fromDrive = from.substring(0,1);
+    const toDrive = to.substring(0,1);
+    const fromPath = from.substring(2);
+    const toPath = to.substring(2);
+    console.log('D', fromDrive, toDrive);
+    if(fromDrive !== toDrive) return from;
+    let pos = 0;
+    let commonPath = '';
+    let pathSeparator = '\\';
+    console.log(fromPath, toPath);
+    console.log('?', fromPath[pos], toPath[pos]);
+    if(fromPath[pos] === pathSeparator || (fromPath[pos] === null && toPath[pos] === pathSeparator)){
+        commonPath = fromPath.substring(0, pos);
     }
-    var fromEnd = from.length;
-    var fromLen = fromEnd - fromStart;
-    
-    // Trim any leading backslashes
-    var toStart = 1;
-    for (; toStart < to.length; ++toStart) {
-      if (to.charCodeAt(toStart) !== 92 /*/*/)
-        break;
-    }
-    var toEnd = to.length;
-    var toLen = toEnd - toStart;
-    
-    // Compare paths to find the longest common path from root
-    var length = fromLen < toLen ? fromLen : toLen;
-    var lastCommonSep = -1;
-    var i = 0;
-    for (; i <= length; ++i) {
-      if (i === length) {
-        if (toLen > length) {
-          if (to.charCodeAt(toStart + i) === 92 /*/*/) {
-            // We get here if `from` is the exact base path for `to`.
-            // For example: from='/foo/bar'; to='/foo/bar/baz'
-            return to.slice(toStart + i + 1);
-          } else if (i === 0) {
-            // We get here if `from` is the root
-            // For example: from='/'; to='/foo'
-            return to.slice(toStart + i);
-          }
-        } else if (fromLen > length) {
-          if (from.charCodeAt(fromStart + i) === 92 /*/*/) {
-            // We get here if `to` is the exact base path for `from`.
-            // For example: from='/foo/bar/baz'; to='/foo/bar'
-            lastCommonSep = i;
-          } else if (i === 0) {
-            // We get here if `to` is the root.
-            // For example: from='/foo'; to='/'
-            lastCommonSep = 0;
-          }
+    while(fromPath[pos] === toPath[pos]){
+        pos++;
+        if(fromPath[pos] === pathSeparator || ((!fromPath[pos]) && toPath[pos] === pathSeparator)){
+            commonPath = fromPath.substring(0, pos);
         }
-        break;
-      }
-      var fromCode = from.charCodeAt(fromStart + i);
-      var toCode = to.charCodeAt(toStart + i);
-      if (fromCode !== toCode)
-        break;
-      else if (fromCode === 92 /*/*/)
-        lastCommonSep = i;
+        console.log('?', fromPath[pos], toPath[pos], fromPath[pos] === pathSeparator,  !(fromPath[pos]), toPath[pos] === pathSeparator);
     }
+    console.log('CP', commonPath);
+    if(!commonPath) return from;
+    const remainingFrom = fromPath.substring(commonPath.length);
+    const remainingTo = toPath.substring(commonPath.length);
+    const fromParts = remainingFrom.split(pathSeparator);
+    const toParts = remainingTo.split(pathSeparator);
+    if(fromParts[0] === '' && toParts[0] === ''){
+        fromParts.shift();
+        toParts.shift();
+    }
+    console.log('tp', toParts);
+    console.log('fp', fromParts);
+    const ascendToCommonDirParts = fromParts.map(part=>'..');
+    console.log('A^', ascendToCommonDirParts);
+    return ascendToCommonDirParts.concat(toParts).join(pathSeparator);
     
-    var out = '';
-    // Generate the relative path based on the path difference between `to`
-    // and `from`
-    for (i = fromStart + lastCommonSep + 1; i <= fromEnd; ++i) {
-      if (i === fromEnd || from.charCodeAt(i) === 92 /*/*/) {
-        if (out.length === 0)
-          out += '..';
-        else
-          out += '/..';
-      }
-    }
-    
-    // Lastly, append the rest of the destination (`to`) path that comes after
-    // the common path parts
-    if (out.length > 0)
-      return out + to.slice(toStart + lastCommonSep);
-    else {
-      toStart += lastCommonSep;
-      if (to.charCodeAt(toStart) === 92 /*/*/)
-        ++toStart;
-      return to.slice(toStart);
-    }
 };
 
 
@@ -234,7 +189,7 @@ export class Path{
                 }
                 if(this.parsed.windows){
                     let windowsFormat = this.parsed.windows || {};
-                    return windowsRelative(type, posix.format(windowsFormat));
+                    return windowsRelative(type, formatWindows(windowsFormat));
                 }
          }
      }
@@ -269,6 +224,7 @@ Object.defineProperty(Path, 'current', {
         return currentPath
     },
     set(newValue) {
+        currentPath = newValue;
         //do nothing
     },
     enumerable: true,
@@ -281,7 +237,7 @@ Object.defineProperty(Path, 'user', {
             const base = document.getElementsByTagName('base')[0];
             let user = null;
             if(base && (user = base.getAttribute('user'))){
-                return basedir;
+                return user;
             }
             return user;
         }else{

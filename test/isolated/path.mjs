@@ -18,10 +18,32 @@ describe('module', ()=>{
             path.substring(0, 2).should.equal('..');
         });
         
-        it(`creates a new path`, async function(){
-            Path.setRoot('C:\\foo');
+        it(`identifies a relative windows path`, async function(){
+            const oldRoot = Path.current;
+            Path.current = 'C:\\foo';
             const path = Path.from('C:\\foo\\bar');
-            console.log('>>>>', path.toString(), path);
+            path.toString().should.equal('bar');
+            Path.current = 'C:\\foo';
+            const subpath = Path.from('C:\\foo\\bar\\baz');
+            subpath.toString().should.equal('bar\\baz');
+            Path.current = 'C:\\foo\\nardo';
+            const relativePath = Path.from('C:\\foo\\bar\\baz');
+            relativePath.toString().should.equal('..\\bar\\baz');
+            Path.current = oldRoot;
+        });
+        
+        it(`identifies a relative posix path`, async function(){
+            const oldRoot = Path.current;
+            Path.current = '/foo';
+            const path = Path.from('/foo/bar');
+            path.toString().should.equal('bar');
+            Path.current = '/foo';
+            const subpath = Path.from('/foo/bar/baz');
+            subpath.toString().should.equal('bar/baz');
+            Path.current = '/foo/nardo';
+            const relativePath = Path.from('/foo/bar/baz');
+            relativePath.toString().should.equal('../bar/baz');
+            Path.current = oldRoot;
         });
     });
 });
