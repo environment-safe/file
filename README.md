@@ -7,12 +7,12 @@ The design goal is to give the widest possible filesystem access, while minimizi
 Usage
 -----
 
-If you want relative URLs to work, you must include a base tag in your html with a `filesystem` attribute that denotes the filesystem path of the server root.
+If you want absolute URLs to work (raw, file://, etc.), you must include a base tag in your html with a `filesystem` attribute that denotes the filesystem path of the server root.
 
 ```html
 <html>
     <head>
-        <base filesystem="/Users/foo/webroot/">
+        <base filesystem="/Users/foo/webroot/" user="foo">
     </head>
     <body></body>
 </html>

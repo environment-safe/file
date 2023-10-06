@@ -88,6 +88,7 @@
         "test": "npm run import-test; npm run browser-test; npm run require-test",
         "import-test": "./node_modules/.bin/mocha test/test.mjs",
         "require-test": "./node_modules/.bin/mocha test/test.cjs",
+        "path-test":"mocha test/isolated/path.mjs",
         "build-test-importmap": "wing-kong -i .import-config.json -f test/index.html rewrite dependencies",
         "build-commonjs": "./node_modules/@environment-safe/commonjs-builder/bin/build.mjs",
         "local-server": "open 'http://localhost:8085/' ; npx http-server -p 8085",

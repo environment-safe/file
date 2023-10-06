@@ -192,11 +192,12 @@ export const localFile = {
 export const serverFile = {
     initialize : async ()=>{
         return {
-            exists: async(path, options={})=>{
+            exists: async(filePath, options={})=>{
                 const parsed = parseUrl(path);
-                console.log('>>', parsed);
+                const url = renderUrl(parsed);
+                console.log('>>', parsed, url);
                 return await new Promise((resolve, reject)=>{
-                    fs.stat(path, (err, res)=>{
+                    fs.stat(url, (err, res)=>{
                         if(err) resolve(false);
                         resolve(true);
                     });
