@@ -38,7 +38,6 @@ knownLocationsMap['windows'] = knownLocationsMap.win;
 
 const canonicalLocationToPath = (location, username)=>{
     const os = osName;
-    console.log('osName', os, knownLocationsMap[os], knownLocationsMap[os][location])
     return (
         (knownLocationsMap[os] && knownLocationsMap[os][location]) || location
     ).replace('~', osToHome[os].replace('${user}', username));
@@ -63,19 +62,15 @@ const formatWindows = (parsed)=>{
 
 //todo: audit the posix code
 const windowsRelative = (from, to)=>{
-    console.log('WR', from, to);
     if (from === to) return '';
     const fromDrive = from.substring(0,1);
     const toDrive = to.substring(0,1);
     const fromPath = from.substring(2);
     const toPath = to.substring(2);
-    console.log('D', fromDrive, toDrive);
     if(fromDrive !== toDrive) return from;
     let pos = 0;
     let commonPath = '';
     let pathSeparator = '\\';
-    console.log(fromPath, toPath);
-    console.log('?', fromPath[pos], toPath[pos]);
     if(fromPath[pos] === pathSeparator || (fromPath[pos] === null && toPath[pos] === pathSeparator)){
         commonPath = fromPath.substring(0, pos);
     }
@@ -84,9 +79,7 @@ const windowsRelative = (from, to)=>{
         if(fromPath[pos] === pathSeparator || ((!fromPath[pos]) && toPath[pos] === pathSeparator)){
             commonPath = fromPath.substring(0, pos);
         }
-        console.log('?', fromPath[pos], toPath[pos], fromPath[pos] === pathSeparator,  !(fromPath[pos]), toPath[pos] === pathSeparator);
     }
-    console.log('CP', commonPath);
     if(!commonPath) return from;
     const remainingFrom = fromPath.substring(commonPath.length);
     const remainingTo = toPath.substring(commonPath.length);
@@ -96,13 +89,22 @@ const windowsRelative = (from, to)=>{
         fromParts.shift();
         toParts.shift();
     }
-    console.log('tp', toParts);
-    console.log('fp', fromParts);
     const ascendToCommonDirParts = fromParts.map(part=>'..');
-    console.log('A^', ascendToCommonDirParts);
     return ascendToCommonDirParts.concat(toParts).join(pathSeparator);
-    
 };
+
+/*
+    const pathRelativeTo = (target, relativeToPath, separator='/')=>{
+        let len = 0;
+        while(target.substring(0, len+1) === relativeToPath.substring(0, len+1)) len++;
+        let result = target.substring(len-1);
+        let parts = relativeToPath.substring(len).split(separator);
+        for (let lcv=0; lcv < parts.length; lcv++){
+            result = '..'+separator+result;
+        }
+        return result;
+    };
+*/ 
 
 
  
@@ -121,7 +123,7 @@ export class Path{
     }
     
     static join(...parts){
-        join(osName, ...parts);
+        return join(osName, ...parts);
     }
      
     constructor(url){
@@ -162,16 +164,19 @@ export class Path{
         switch(type){
             case 'https:':
             case 'http:':
-                return '';
+                //todo: support not having the current dir (pure web mode)
+                return `${type}//${Path.relative(this.toUrl('native'), Path.current)}`;
             case 'file:':
-                return '';
+                return `file://${toUrl('native')}`;
             case 'native':
                 switch(osName){
                     case 'darwin': 
                     case 'mac os x': 
                     case 'linux': 
-                        let posixFormat = this.parsed.posix || {}
-                        return posix.format(posixFormat);
+                        return this.toUrl('posix');
+                    case 'win': 
+                    case 'windows': 
+                        return this.toUrl('windows');
                     default: throw new Error('unsupported OS'+osName);
                 }
                 return '';
@@ -191,6 +196,9 @@ export class Path{
                     let windowsFormat = this.parsed.windows || {};
                     return windowsRelative(type, formatWindows(windowsFormat));
                 }
+                if(this.parsed.url){
+                    return this.parsed.url.toString();
+                }
          }
      }
      
@@ -199,6 +207,7 @@ export class Path{
     }
 }
 let currentPath = null;
+let initialPath = null;
 Object.defineProperty(Path, 'current', {
     get() {
         if(!currentPath){
@@ -221,11 +230,11 @@ Object.defineProperty(Path, 'current', {
                 currentPath = process.cwd();
             }
         }
+        if(!initialPath) initialPath = currentPath;
         return currentPath
     },
     set(newValue) {
         currentPath = newValue;
-        //do nothing
     },
     enumerable: true,
     configurable: true,
@@ -410,7 +419,6 @@ export const serverFile = {
             exists: async(filePath, options={})=>{
                 const parsed = parseUrl(path);
                 const url = renderUrl(parsed);
-                console.log('>>', parsed, url);
                 return await new Promise((resolve, reject)=>{
                     fs.stat(url, (err, res)=>{
                         if(err) resolve(false);
