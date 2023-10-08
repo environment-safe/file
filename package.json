@@ -59,10 +59,12 @@
             "express",
             "module",
             "fs",
+            "os",
             "path"
         ],
         "shims": {
             "chai": "node_modules/chai/chai.js",
+            "@environment-safe/runtime-context": "node_modules/@environment-safe/runtime-context/./src/index.mjs",
             "browser-or-node": "node_modules/browser-or-node/src/index.js"
         }
     },
@@ -74,7 +76,7 @@
         "@environment-safe/chai": "^0.1.0",
         "@environment-safe/commonjs-builder": "^0.0.3",
         "@environment-safe/jsdoc-builder": "^0.0.2",
-        "@open-automaton/moka": "^0.1.0",
+        "@open-automaton/moka": "^0.3.0",
         "babel-plugin-search-and-replace": "^1.1.1",
         "babel-plugin-transform-import-meta": "^2.2.0",
         "chai": "^4.3.7",
@@ -88,10 +90,12 @@
         "test": "npm run import-test; npm run browser-test; npm run require-test",
         "import-test": "./node_modules/.bin/mocha test/test.mjs",
         "require-test": "./node_modules/.bin/mocha test/test.cjs",
-        "path-test":"mocha test/isolated/path.mjs",
-        "browser-path-test": "moka --server . --local-browser --relaxed --prefix ../ test/isolated/path.mjs",
-        "headless-browser-path-test": "npm run headless-chrome-path-test",
-        "headless-chrome-path-test": "moka --server . --browser chrome --relaxed --prefix ../ test/isolated/path.mjs",
+        "path-test": "mocha test/isolated/path.mjs",
+        "browser-path-test": "moka --server . --local-browser test/isolated/path.mjs",
+        "headless-browser-path-test": "npm run headless-chrome-path-test; npm run headless-firefox-path-test; npm run headless-safari-path-test",
+        "headless-chrome-path-test": "moka --server . --browser chrome test/isolated/path.mjs",
+        "headless-firefox-path-test": "moka --server . --browser firefox test/isolated/path.mjs",
+        "headless-safari-path-test": "moka --server . --browser safari test/isolated/path.mjs",
         "build-test-importmap": "wing-kong -i .import-config.json -f test/index.html rewrite dependencies",
         "build-commonjs": "./node_modules/@environment-safe/commonjs-builder/bin/build.mjs",
         "local-server": "open 'http://localhost:8085/' ; npx http-server -p 8085",

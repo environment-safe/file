@@ -12,32 +12,20 @@ const ensureRequire = ()=> (!internalRequire) && (internalRequire = mod.createRe
  * @typedef { object } JSON
  */
  
- // Isn't the fact that we had 2 path scenarios driven by OS, fixed it, (win, unix)
- // and we now have 4 an obvious indicator that we went wrong? (win, unix, file, known dirs)
+// Isn't the fact that we had 2 path scenarios driven by OS, fixed it, (win, unix)
+// and we now have 4 an obvious indicator that we went wrong? (win, unix, file, known dirs)
  
 import { FileBuffer } from './buffer.mjs';
-import * as fs from 'fs';
-import * as path from 'path';
-import { 
-    isBrowser, 
-    isNode, 
-    isWebWorker, 
-    isJsDom, 
-    isDeno,
-    isBun,
-    isClient, // is running a client
+import {
     isServer, // is running on a server runtime
-    variables, // global variables
     isLocalFileRoot, // run within a page using a file: url
-    isUrlRoot, //run within a page with a served url
-    isServerRoot, //run within a 
-    os, // Operating system, machine friendly
-    operatingSystem, // Operating System, label
-    runtime // server runtime name or browser name
 } from '@environment-safe/runtime-context';
 import { localFile as lf, serverFile as sf, file as f, remote as r} from './filesystem.mjs';
 import { Path } from './path.mjs';
 export { Path };
+const handleCanonicalPath = (dir, os, user)=>{
+    
+};
 /*export const nativePathJoin = (...parts)=>{ //returns buffer, eventually stream
     if(isBrowser || isJsDom){
         return parts.join(fileSeparator);
@@ -107,23 +95,31 @@ let localFile=null;
 let serverFile=null;
 let file=null;
 let remote=null;
+let inited=false;
+
 export const initialized = async (path, options)=>{
+    if(inited) return;
     if(isServer){
         serverFile = await sf.initialize();
+        inited = true;
     }else{
         if(isLocalFileRoot){
             localFile = await lf.initialize();
+            inited = true;
         }else{
             if(path.indexOf('file://') !== -1){
                 //file: url
                 localFile = await lf.initialize();
+                inited = true;
             }else{
                 if(path.indexOf('://') !== -1){
                     //remote url
                     remote = await r.initialize();
+                    inited = true;
                 }else{
                     //an absolute or relative file path
                     file = await f.initialize();
+                    inited = true;
                 }
             }
         }
@@ -131,7 +127,7 @@ export const initialized = async (path, options)=>{
 };
 
 export const read = async (path, options)=>{
-    await initialized();
+    await initialized(path);
     if(isServer){
         return serverFile.read(path, options);
     }else{
@@ -155,7 +151,7 @@ export const read = async (path, options)=>{
 };
 
 export const list = async (path, options)=>{
-    await initialized();
+    await initialized(path);
     if(isServer){
         return serverFile.list(path, options);
     }else{
@@ -179,7 +175,7 @@ export const list = async (path, options)=>{
 };
 
 export const write = async (path, buffer, options)=>{
-    await initialized();
+    await initialized(path);
     if(isServer){
         return serverFile.write(path, buffer, options);
     }else{
@@ -202,7 +198,7 @@ export const write = async (path, buffer, options)=>{
     }
 };
 export const create = async (path)=>{
-    await initialized();
+    await initialized(path);
     if(isServer){
         return serverFile.create(path);
     }else{
@@ -225,7 +221,7 @@ export const create = async (path)=>{
     }
 };
 export const exists = async (path)=>{
-    await initialized();
+    await initialized(path);
     if(isServer){
         return serverFile.exists(path);
     }else{
@@ -248,7 +244,7 @@ export const exists = async (path)=>{
     }
 };
 export const remove = async (path)=>{
-    await initialized();
+    await initialized(path);
     if(isServer){
         return serverFile.delete(path);
     }else{
@@ -293,7 +289,6 @@ export class File{
     }
     
     async load(){
-        const dir = this.path.indexOf('/') === -1?this.directory:'';
         this.buffer = await read(this.path, this.options);
         this.buffer.cast = (type)=>{
             return FileBuffer.to(type, this.buffer);
@@ -312,7 +307,7 @@ export class File{
     }
     
     async info(){
-        return await info(this.path);
+        //return await info(this.path);
     }
     
     async 'delete'(){
@@ -327,4 +322,4 @@ export class File{
     static list(path, options){
         return list(path, options);
     }
-};
+}

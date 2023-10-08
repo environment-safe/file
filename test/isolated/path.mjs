@@ -12,7 +12,6 @@ describe('module', ()=>{
         // This test assumes you are executing from within your home dir
         it(`identifies PWD relative to user home`, ()=>{
             const parsed = Path.from(Path.location('home'));
-            console.log(parsed);
             const path = parsed.toString();
             should.exist(path);
             path.substring(0, 2).should.equal('..');

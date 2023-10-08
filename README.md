@@ -9,7 +9,7 @@ You may need native paths, relative paths, file paths or web paths and may be ru
 Usage
 -----
 
-If you want absolute URLs to work (raw, file://, etc.), you must include a base tag in your html with a `filesystem` attribute that denotes the filesystem path of the server root.
+If you want absolute URLs to work (raw, file://, etc.), you must include a base tag in your html with a `filesystem` attribute that denotes the filesystem path of the server root. If not present, it assumes we are on a remote server.
 
 ```html
 <html>
@@ -64,7 +64,11 @@ Other scenarios may work in isolated circumstances, but are not supported client
 Roadmap
 -------
 
-- [ ] - test existing suite in windows + linux
+- [x] - test existing suite in mac node
+- [ ] - test existing suite in in chrome + server
+- [ ] - test existing suite in in chrome + file
+- [ ] - test existing suite in windows node
+- [ ] - test existing suite in linux node
 - [ ] - safari directory returns
 - [ ] - firefox directory returns
 - [ ] - edge directory returns

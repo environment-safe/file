@@ -12,28 +12,13 @@ const ensureRequire = ()=> (!internalRequire) && (internalRequire = mod.createRe
  * @typedef { object } JSON
  */
  
- // Isn't the fact that we had 2 path scenarios driven by OS, fixed it, (win, unix)
- // and we now have 4 an obvious indicator that we went wrong? (win, unix, file, known dirs)
+// Isn't the fact that we had 2 path scenarios driven by OS, fixed it, (win, unix)
+// and we now have 4 an obvious indicator that we went wrong? (win, unix, file, known dirs)
  
 import { FileBuffer } from './buffer.mjs';
 import * as fs from 'fs';
-import * as path from 'path';
 import { 
-    isBrowser, 
-    isNode, 
-    isWebWorker, 
-    isJsDom, 
-    isDeno,
-    isBun,
-    isClient, // is running a client
-    isServer, // is running on a server runtime
-    variables, // global variables
-    isLocalFileRoot, // run within a page using a file: url
-    isUrlRoot, //run within a page with a served url
-    isServerRoot, //run within a 
-    os, // Operating system, machine friendly
-    operatingSystem, // Operating System, label
-    runtime // server runtime name or browser name
+    isClient // is running a client
 } from '@environment-safe/runtime-context';
 import { Path } from './path.mjs';
 //TODO: Streaming
@@ -159,7 +144,7 @@ export const localFile = {
                 await writableStream.close();
             },
             read: async (path, options={})=>{
-                const fileHandle = await wantInput(location, (event, resolve, reject)=>{
+                /*const fileHandle = */await wantInput(location, (event, resolve, reject)=>{
                     const options = getFilePickerOptions(path);
                     try{
                         window.showOpenFilePicker(options).then(([ handle ])=>{
