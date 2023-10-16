@@ -13,7 +13,8 @@ const ensureRequire = ()=> (!internalRequire) && (internalRequire = mod.createRe
  */
  
 // Isn't the fact that we had 2 path scenarios driven by OS, fixed it, (win, unix)
-// and we now have 4 an obvious indicator that we went wrong? (win, unix, file, known dirs)
+// and we now have an explosion an obvious indicator that we went wrong?
+// win, posix, file:win, file:posix, known dirs, web urls, plus file: behavior is different on local vs server
  
 import { FileBuffer } from './buffer.mjs';
 import {
@@ -118,7 +119,7 @@ export const initialized = async (path, options)=>{
                     inited = true;
                 }else{
                     //an absolute or relative file path
-                    file = await f.initialize();
+                    localFile = await lf.initialize();
                     inited = true;
                 }
             }
@@ -140,10 +141,12 @@ export const read = async (path, options)=>{
             }else{
                 if(path.indexOf('://') !== -1){
                     //remote url
+                    console.log('FOUND A URL', path)
                     return remote.read(path, options);
                 }else{
+                    console.log('FOUND A FILE PATH')
                     //an absolute or relative file path
-                    return file.read(path, options);
+                    return localFile.read(path, options);
                 }
             }
         }
@@ -167,7 +170,7 @@ export const list = async (path, options)=>{
                     return remote.list(path, options);
                 }else{
                     //an absolute or relative file path
-                    return file.list(path, options);
+                    return localFile.list(path, options);
                 }
             }
         }
@@ -191,7 +194,7 @@ export const write = async (path, buffer, options)=>{
                     return remote.write(path, buffer, options);
                 }else{
                     //an absolute or relative file path
-                    return file.write(path, buffer, options);
+                    return localFile.write(path, buffer, options);
                 }
             }
         }
@@ -214,7 +217,7 @@ export const create = async (path)=>{
                     return remote.create(path);
                 }else{
                     //an absolute or relative file path
-                    return file.create(path);
+                    return localFile.create(path);
                 }
             }
         }
@@ -230,14 +233,15 @@ export const exists = async (path)=>{
         }else{
             if(path.indexOf('file://') !== -1){
                 //file: url
-                return localFile.exists(path);
+                return file.exists(path);
             }else{
                 if(path.indexOf('://') !== -1){
                     //remote url
                     return remote.exists(path);
                 }else{
+                    console.log('FOUND PATH')
                     //an absolute or relative file path
-                    return file.exists(path);
+                    return await localFile.exists(path);
                 }
             }
         }
@@ -315,11 +319,11 @@ export class File{
         return this;
     }
     
-    static exists(path, directory){
-        return exists(path, directory);
+    static async exists(path, directory){
+        return await exists(path, directory);
     }
     
-    static list(path, options){
-        return list(path, options);
+    static async list(path, options){
+        return await list(path, options);
     }
 }

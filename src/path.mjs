@@ -13,10 +13,10 @@ const knownLocationsMap = {
         'downloads': '~/Downloads', 
         'music': '~/Music', 
         'pictures': '~/Pictures', 
-        'home': '~',
-        'temp': '/tmp',
+        'temporary': '/tmp',
         'videos': '~/Movies',
-        'web': '~/Sites'
+        'web': '~/Sites',
+        'home': '~'
     },
     win : {},
     linux : {},
@@ -97,6 +97,11 @@ const windowsRelative = (from, to)=>{
 
  
 export class Path{
+    
+    static browserLocations = [
+        'documents', 'desktop', 'downloads', 'music', 'pictures', 'videos'
+    ];
+    
     static from(str){
         return new Path(str);
     }
@@ -104,6 +109,26 @@ export class Path{
     static location(name){
         if(name === 'home' && isServer) return os.homedir();
         return canonicalLocationToPath(name, Path.user);
+    }
+    
+    static isLocation(path){
+        let found = false;
+        Object.keys(knownLocationsMap[osName]).forEach((name)=>{
+            if(found) return;
+            const testPath = canonicalLocationToPath(name, Path.user);
+            if(Path.within(path, testPath)){
+                found = {
+                    location : name,
+                    locationPath : testPath,
+                    remainingPath: path.substring(testPath.length)
+                };
+            }
+        });
+        return found;
+    }
+    
+    static within(path, subpath){
+        return path.indexOf(subpath) === 0;
     }
     
     //only supports absolute URLs
@@ -152,49 +177,103 @@ export class Path{
         this.parsed = result;
     }
      
-    toUrl(type){
+    toUrl(type, relative){
         switch(type){
             case 'https:':
             case 'http:':
+                //todo: simple mode that doesn't compute full URLs
+                const url = this.toUrl('native');
+                if(relative || url[0]=='.'){
+                    const relativeTo = typeof relative === 'string'?relative:Path.current;
+                    return `${Path.relative(relativeTo, url)}`;
+                }
                 //todo: support not having the current dir (pure web mode)
-                return `${type}//${Path.relative(this.toUrl('native'), Path.current)}`;
+                if(!Path.within(Path.current, url)){
+                    //uh oh, looks like we're outside the web root
+                    let location = null;
+                    if(location = Path.isLocation(url)){
+                        console.log('IS LOCATION', location)
+                        const result = `::${location.location}/${location.remainingPath}`;
+                        result.parsed = location;
+                        return result;
+                    }else{
+                        throw new Error('Path is outside of addressable locations');
+                    }
+                }
+                console.log('+', type, relative, url, Path.relative(Path.current, url));
+                const relativePath = Path.relative(Path.current, url)
+                const prefix = relativePath[0]=='.'?'':type+'//';
+                const result = `${prefix}${relativePath}`;
+                return result;
             case 'file:':
-                return `file://${this.toUrl('native')}`;
+                let res = null
+                if(relative){
+                    res = `${ Path.relative(Path.current, this.toUrl('native')).replace(/\\/g, '/') }`;
+                }
+                res = `file://${this.toUrl('native')}`;
+                console.log('FILE!!!')
+                return res;
             case 'native':
                 switch(osName){
                     case 'darwin': 
                     case 'mac os x': 
                     case 'linux': 
-                        return this.toUrl('posix');
+                        return this.toUrl('posix', relative);
                     case 'win': 
                     case 'windows': 
-                        return this.toUrl('windows');
+                        return this.toUrl('windows', relative);
                     default: throw new Error('unsupported OS'+osName);
                 }
             case 'windows':
-                if(this.parsed.windows) return `${this.parsed.windows.dir}\\${this.parsed.windows.name}`;
+                if(this.parsed.windows){
+                    const windowsPath = `${this.parsed.windows.dir}\\${this.parsed.windows.name}`;
+                    if(relative){
+                        const relativeTo = typeof relative === 'string'?relative:Path.current;
+                        return `${Path.relative(relativeTo, windowsPath)}`;
+                    }
+                    return windowsPath;
+                }
                 return '';
             case 'posix':
-                if(this.parsed.posix) return posix.format(this.parsed.posix);
-                return '';
-            //anything else must be a relative path
-            default: 
                 if(this.parsed.posix){
+                    const posixPath = posix.format(this.parsed.posix);
+                    if(relative){
+                        const relativeTo = typeof relative === 'string'?relative:Path.current;
+                        return `${Path.relative(relativeTo, posixPath)}`;
+                    }
+                    return posixPath;
+                }
+                if(this.parsed.windows){
+                    let windowsPath = formatWindows(this.parsed.windows);
+                    if(relative){
+                        const relativeTo = typeof relative === 'string'?relative:Path.current;
+                        windowsPath = `${windowsRelative(relativeTo, windowsPath)}`;
+                    }
+                    windowsPath = windowsPath.replace(/[A-Z]:/g, '');
+                    const posixPath = windowsPath
+                    return posixPath;
+                }
+                return '';
+            //anything else must be a relative path or url
+            default: 
+                
+                /*if(this.parsed.posix){
                     let posixFormat = this.parsed.posix || {};
                     return posix.relative(type, posix.format(posixFormat));
                 }
                 if(this.parsed.windows){
                     let windowsFormat = this.parsed.windows || {};
                     return windowsRelative(type, formatWindows(windowsFormat));
-                }
+                }*/
                 if(this.parsed.url){
                     return this.parsed.url.toString();
                 }
+                return this.toUrl('native', true);
         }
     }
      
     toString(){
-        return this.toUrl(Path.current);
+        return this.toUrl('native', Path.current);
     }
 }
 let currentPath = null;

@@ -25,6 +25,10 @@ import { Path } from './path.mjs';
 
 //TODO: browser filesystem contexts
 
+const trimLeadingPath = (path)=>{
+    return path[0] === '/'?path.substring(0):path;
+}
+
 const mimesBySuffix = {
     json : 'application/json',
     jpg : 'image/jpeg',
@@ -42,15 +46,27 @@ const mimesBySuffix = {
     css : 'text/css',
 };
 
-const getFilePickerOptions = (name, path)=>{
+const getFilePickerOptions = (path)=>{
+    const isLocation = Path.isLocation(path);
+    const parsedPath = new Path(path);
+    console.log('π', path, parsedPath.parsed, isLocation);
     let suffix = name.split('.').pop();
     if(suffix.length > 6) suffix = '';
     const options = {
         suggestedName: name
     };
-    if(path) options.startIn = path;
+    if(isLocation){
+        options.suggestedName = isLocation.remainingPath;
+        options.startIn = isLocation.location;
+    }else{
+        const posixPath = parsedPath.toUrl('posix', true);
+        const parts = posixPath.split('/');
+        options.suggestedName = parts.pop();
+        options.startIn = parts.join('/');
+    }
     if(suffix){
         const accept = {};
+        
         accept[mimesBySuffix[suffix]] = '.'+suffix;
         options.types = [{
             description: suffix,
@@ -113,68 +129,123 @@ const wantInput = async (id, handler, cache)=>{
     return await input;
 };
 
+const globalFileHandleCache = {read:{}, write:{}};
+
+const fileHandle = async (path, options)=>{
+    if(options.isDirectory){
+        const dirHandle = await wantInput(location, (event, resolve, reject)=>{
+            const options = getFilePickerOptions(path);
+            try{
+                let found = false;
+                window.showDirectoryPicker(options).then(async (thisHandle)=>{
+                    const values = (await thisHandle.values())
+                    if(values){
+                        //console.log(values, options);
+                        for await (const entry of values){
+                            //console.log(entry.kind, entry.name, entry.name === options.suggestedName.substring(1));
+                            found = found || entry.name === options.suggestedName.substring(1);
+                        };
+                    }else{
+                        console.log('NO VALUES', path);
+                    }
+                    console.log('FINAL', found)
+                    resolve(found);
+                }).catch((ex)=>{
+                    reject(ex);
+                });
+            }catch(ex){
+                reject(ex);
+            }
+        }, options.cache && options.cache.write);
+        return dirHandle
+    }else{
+        if(options.isWritable){
+            const newHandle = await wantInput(location, (event, resolve, reject)=>{
+                const options = getFilePickerOptions(path);
+                try{
+                    window.showSaveFilePicker(options).then((thisHandle)=>{
+                        resolve(thisHandle);
+                    }).catch((ex)=>{
+                        reject(ex);
+                    });
+                }catch(ex){
+                    reject(ex);
+                }
+            }, options.cache && options.cache.write);
+            return newHandle;
+        }else{
+            return await wantInput(location, (event, resolve, reject)=>{
+                const options = getFilePickerOptions(path);
+                try{
+                    window.showOpenFilePicker(options).then(([ handle ])=>{
+                        resolve(handle);
+                    }).catch((ex)=>{
+                        reject(ex);
+                    });
+                }catch(ex){
+                    reject(ex);
+                }
+            }, options.cache && options.cache.read);
+        }
+    }
+}
+
 // END INPUT HACK
 
 export const localFile = {
     initialize : async ()=>{
         return {
             exists: async(path, options={})=>{
-                
+                console.log("!!!");
+                options.isDirectory = true;
+                try{
+                    const handle = await fileHandle(path, options);
+                    //console.log("$>>", handle);
+                    return !!handle;
+                }catch(ex){
+                    console.log("LFE", ex);
+                    return false;
+                }
             },
             list: async(path, options={})=>{
                 
             },
             create: async (path, options={})=>{
-                const newHandle = await wantInput(location, (event, resolve, reject)=>{
-                    const options = getFilePickerOptions(path);
-                    try{
-                        window.showSaveFilePicker(options).then((thisHandle)=>{
-                            resolve(thisHandle);
-                        }).catch((ex)=>{
-                            reject(ex);
-                        });
-                    }catch(ex){
-                        reject(ex);
-                    }
-                }, options.cache);
-                const writableStream = await newHandle.createWritable();
-                // write our file
-                await writableStream.write(FileBuffer.from(''));
-                // close the file and write the contents to disk.
-                await writableStream.close();
+                try{
+                    options.isWritable = true;
+                    const handle = await fileHandle(path, options);
+                    const writableStream = await handle.createWritable();
+                    // write our file
+                    await writableStream.write(FileBuffer.from(''));
+                    // close the file and write the contents to disk.
+                    await writableStream.close();
+                }catch(ex){
+                    console.log(ex);
+                    return false;
+                }
             },
             read: async (path, options={})=>{
-                /*const fileHandle = */await wantInput(location, (event, resolve, reject)=>{
-                    const options = getFilePickerOptions(path);
-                    try{
-                        window.showOpenFilePicker(options).then(([ handle ])=>{
-                            resolve(handle);
-                        }).catch((ex)=>{
-                            reject(ex);
-                        });
-                    }catch(ex){
-                        reject(ex);
-                    }
-                }, options.cache);
+                try{
+                    const handle = await fileHandle(path, options);
+                    return handle;
+                }catch(ex){
+                    console.log(ex);
+                    return false;
+                }
             },
             write: async (path, buffer, options={})=>{
-                const newHandle = await wantInput(location, (event, resolve, reject)=>{
-                    const options = getFilePickerOptions(path);
-                    try{
-                        window.showSaveFilePicker(options).then((thisHandle)=>{
-                            resolve(thisHandle);
-                        }).catch((ex)=>{
-                            reject(ex);
-                        });
-                    }catch(ex){
-                        reject(ex);
-                    }
-                }, options.cache);
-                const writableStream = await newHandle.createWritable();
-                // write our file
-                await writableStream.write(FileBuffer.from(buffer));
-                // close the file and write the contents to disk.
-                await writableStream.close();
+                try{
+                    options.isWritable = true;
+                    const handle = await fileHandle(path, options);
+                    const writableStream = await handle.createWritable();
+                    // write our file
+                    await writableStream.write(FileBuffer.from(buffer));
+                    // close the file and write the contents to disk.
+                    await writableStream.close();
+                }catch(ex){
+                    console.log(ex);
+                    return false;
+                }
             },
             delete: async (path, options={})=>{
                 
@@ -270,22 +341,33 @@ export const serverFile = {
         };
     }
 };
+
+
 export const file = { //using a file url uses different rules
     initialize : async ()=>{
         return {
             exists: async(path, options={})=>{
-                const response = await fetch((new Path(path)).toUrl('file:'));
-                return !!response;
+                const url = (new Path(path)).toUrl(options.type);
+                console.log('????', path, url.parsed);
+                if(url.parsed){
+                    console.log('&&&', url.parsed, url.parsed.location)
+                    if(browserLocations.indexOf(url.parsed.location) !== -1 ){
+                        return localFile.exists(url.parsed, {});
+                    }
+                }
+                const response = await fetch(url);
+                return response.status === 200;
             },
             list: async(path, options={})=>{
-                // the only real option here is to scrape by browser
-                await fetch((new Path(path)).toUrl('http:'));
+                const dirHandle = await window.showDirectoryPicker();
+                
             },
             create: async (path, options={})=>{
                 throw new Error('Unsupported');
             },
             read: async (path, options={})=>{
-                const response = await fetch((new Path(path)).toUrl('file:'));
+                const url = (new Path(path)).toUrl(options.type)
+                const response = await fetch(url);
                 return await response.json();
             },
             write: async (path, buffer, options={})=>{
@@ -304,6 +386,7 @@ export const remote = {
         return {
             exists: async(path, options={})=>{
                 const response = await fetch((new Path(path)).toUrl(protocol));
+                console.log('?==?', url, url.parsed)
                 return !!response;
             },
             list: async(path, options={})=>{

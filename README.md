@@ -6,6 +6,8 @@ The design goal is to give the widest possible filesystem access, while minimizi
 
 You may need native paths, relative paths, file paths or web paths and may be running from an environment with a current directory or a web page with both a native location as well as a webroot. This allows all scenarios in all environments.
 
+The browser file APIs are a total mess: with 6 different addressable formats, embedded proprietary formats and a bizarre array of interaction scenarios between client and server, and the abstraction does not fully cover all use cases yet.
+
 Usage
 -----
 

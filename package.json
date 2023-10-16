@@ -89,6 +89,8 @@
         "lint": "./node_modules/.bin/eslint src/*.mjs test/*.mjs",
         "test": "npm run import-test; npm run browser-test; npm run require-test",
         "import-test": "./node_modules/.bin/mocha test/test.mjs",
+        "import-file-test": "moka --file test/test.html --browser safari file://$(pwd)/test/test.mjs",
+        "browser-file-test": "moka --verbose --file test/test.html --local-browser file://$(pwd)/test/test.mjs",
         "require-test": "./node_modules/.bin/mocha test/test.cjs",
         "path-test": "mocha test/isolated/path.mjs",
         "browser-path-test": "moka --server . --local-browser test/isolated/path.mjs",
@@ -103,7 +105,7 @@
         "headless-chrome-test": "moka --server . --browser chrome --relaxed --prefix ../ test/test.mjs",
         "headless-firefox-test": "moka --server . --browser firefox --relaxed --prefix ../ test/test.mjs",
         "headless-safari-test": "moka --server . --browser safari --relaxed --prefix ../ test/test.mjs",
-        "browser-test": "moka --server . --local-browser --relaxed --prefix ../ test/test.mjs",
+        "browser-test": "moka --server . --local-browser test/test.mjs",
         "container-test": "docker build . -t environment-safe-package.json -f ./containers/test.dockerfile; docker logs --follow \"$(docker run -d environment-safe-package.json)\"",
         "build-docs": "build-jsdoc docs",
         "build-types": "build-jsdoc types",
@@ -113,6 +115,7 @@
     "dependencies": {
         "@environment-safe/package": "^0.2.0",
         "@environment-safe/runtime-context": "^0.0.1",
-        "browser-or-node": "^2.1.1"
+        "browser-or-node": "^2.1.1",
+        "typescript": "^5.2.2"
     }
 }

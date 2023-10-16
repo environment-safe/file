@@ -21,10 +21,10 @@ describe('module', ()=>{
             const oldRoot = Path.current;
             Path.current = 'C:\\foo';
             const path = Path.from('C:\\foo\\bar');
-            path.toString().should.equal('bar');
+            path.toUrl('windows', true).should.equal('bar');
             Path.current = 'C:\\foo';
             const subpath = Path.from('C:\\foo\\bar\\baz');
-            subpath.toString().should.equal('bar\\baz');
+            subpath.toUrl('windows', true).should.equal('bar\\baz');
             Path.current = 'C:\\foo\\nardo';
             const relativePath = Path.from('C:\\foo\\bar\\baz');
             relativePath.toString().should.equal('..\\bar\\baz');
