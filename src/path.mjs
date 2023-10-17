@@ -192,7 +192,6 @@ export class Path{
                     //uh oh, looks like we're outside the web root
                     let location = null;
                     if(location = Path.isLocation(url)){
-                        console.log('IS LOCATION', location)
                         const result = `::${location.location}/${location.remainingPath}`;
                         result.parsed = location;
                         return result;
@@ -200,7 +199,6 @@ export class Path{
                         throw new Error('Path is outside of addressable locations');
                     }
                 }
-                console.log('+', type, relative, url, Path.relative(Path.current, url));
                 const relativePath = Path.relative(Path.current, url)
                 const prefix = relativePath[0]=='.'?'':type+'//';
                 const result = `${prefix}${relativePath}`;
@@ -211,7 +209,6 @@ export class Path{
                     res = `${ Path.relative(Path.current, this.toUrl('native')).replace(/\\/g, '/') }`;
                 }
                 res = `file://${this.toUrl('native')}`;
-                console.log('FILE!!!')
                 return res;
             case 'native':
                 switch(osName){

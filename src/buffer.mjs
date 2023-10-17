@@ -22,9 +22,10 @@ let InternalBuffer = null;
 if(isBrowser || isJsDom){
     InternalBuffer = function(){};
     var enc = new TextEncoder();
-    var dec = new TextDecoder('utf-8');
+    var dec = new TextDecoder(); //'utf-8'
     InternalBuffer.from = (ob)=>{
         const type = Array.isArray(ob)?'array':(typeof ob);
+        if(InternalBuffer.is(ob)) return ob;
         switch(type){
             case 'object':
             case 'array':
@@ -33,12 +34,16 @@ if(isBrowser || isJsDom){
             case '':
         }
     };
+    InternalBuffer.is = (buffer)=>{
+        return buffer instanceof ArrayBuffer
+    };
     InternalBuffer.to = (type, buffer)=>{
         switch(type){
             case 'object':
             case 'array':
             case 'string':
-                return dec.decode(buffer);
+                const result = dec.decode(buffer);
+                return result;
             case '':
         }
     };

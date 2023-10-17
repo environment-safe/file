@@ -141,10 +141,8 @@ export const read = async (path, options)=>{
             }else{
                 if(path.indexOf('://') !== -1){
                     //remote url
-                    console.log('FOUND A URL', path)
                     return remote.read(path, options);
                 }else{
-                    console.log('FOUND A FILE PATH')
                     //an absolute or relative file path
                     return localFile.read(path, options);
                 }
@@ -239,7 +237,6 @@ export const exists = async (path)=>{
                     //remote url
                     return remote.exists(path);
                 }else{
-                    console.log('FOUND PATH')
                     //an absolute or relative file path
                     return await localFile.exists(path);
                 }
@@ -264,7 +261,7 @@ export const remove = async (path)=>{
                     return remote.delete(path);
                 }else{
                     //an absolute or relative file path
-                    return file.delete(path);
+                    return localFile.delete(path);
                 }
             }
         }
@@ -293,7 +290,10 @@ export class File{
     }
     
     async load(){
-        this.buffer = await read(this.path, this.options);
+        const handle = await read(this.path, this.options);
+        const file = await handle.getFile();
+        this.buffer = await file.arrayBuffer();
+        if(!this.buffer) throw new Error(`Error: ${this.path} ${this.options}`);
         this.buffer.cast = (type)=>{
             return FileBuffer.to(type, this.buffer);
         };

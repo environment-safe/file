@@ -49,8 +49,7 @@ const mimesBySuffix = {
 const getFilePickerOptions = (path)=>{
     const isLocation = Path.isLocation(path);
     const parsedPath = new Path(path);
-    console.log('π', path, parsedPath.parsed, isLocation);
-    let suffix = name.split('.').pop();
+    let suffix = path.split('.').pop();
     if(suffix.length > 6) suffix = '';
     const options = {
         suggestedName: name
@@ -58,6 +57,8 @@ const getFilePickerOptions = (path)=>{
     if(isLocation){
         options.suggestedName = isLocation.remainingPath;
         options.startIn = isLocation.location;
+        //eat leading slash
+        if(options.suggestedName[0] === '/') options.suggestedName = options.suggestedName.substring(1);
     }else{
         const posixPath = parsedPath.toUrl('posix', true);
         const parts = posixPath.split('/');
@@ -140,15 +141,10 @@ const fileHandle = async (path, options)=>{
                 window.showDirectoryPicker(options).then(async (thisHandle)=>{
                     const values = (await thisHandle.values())
                     if(values){
-                        //console.log(values, options);
                         for await (const entry of values){
-                            //console.log(entry.kind, entry.name, entry.name === options.suggestedName.substring(1));
-                            found = found || entry.name === options.suggestedName.substring(1);
+                            found = found || entry.name === options.suggestedName;
                         };
-                    }else{
-                        console.log('NO VALUES', path);
                     }
-                    console.log('FINAL', found)
                     resolve(found);
                 }).catch((ex)=>{
                     reject(ex);
@@ -196,14 +192,11 @@ export const localFile = {
     initialize : async ()=>{
         return {
             exists: async(path, options={})=>{
-                console.log("!!!");
                 options.isDirectory = true;
                 try{
                     const handle = await fileHandle(path, options);
-                    //console.log("$>>", handle);
                     return !!handle;
                 }catch(ex){
-                    console.log("LFE", ex);
                     return false;
                 }
             },
@@ -348,9 +341,7 @@ export const file = { //using a file url uses different rules
         return {
             exists: async(path, options={})=>{
                 const url = (new Path(path)).toUrl(options.type);
-                console.log('????', path, url.parsed);
                 if(url.parsed){
-                    console.log('&&&', url.parsed, url.parsed.location)
                     if(browserLocations.indexOf(url.parsed.location) !== -1 ){
                         return localFile.exists(url.parsed, {});
                     }
@@ -386,7 +377,6 @@ export const remote = {
         return {
             exists: async(path, options={})=>{
                 const response = await fetch((new Path(path)).toUrl(protocol));
-                console.log('?==?', url, url.parsed)
                 return !!response;
             },
             list: async(path, options={})=>{
