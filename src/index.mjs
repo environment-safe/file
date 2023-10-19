@@ -21,9 +21,9 @@ import {
     isServer, // is running on a server runtime
     isLocalFileRoot, // run within a page using a file: url
 } from '@environment-safe/runtime-context';
-import { localFile as lf, serverFile as sf, file as f, remote as r} from './filesystem.mjs';
+import { localFile as lf, serverFile as sf, file as f, remote as r, setInputHandler, bindInput} from './filesystem.mjs';
 import { Path } from './path.mjs';
-export { Path };
+export { Path, setInputHandler, bindInput };
 const handleCanonicalPath = (dir, os, user)=>{
     
 };

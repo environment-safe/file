@@ -96,19 +96,24 @@ const getFilePickerOptions = (path)=>{
     };
 */
 
-// INPUT HACK: most file ops need user input:
+// INPUT HACK: most file ops need to happen on a user input action and cannot be deferred:
 
 const inputQueue = [];
+
+let inputHandler = (event, inputQueue)=>{
+    if(inputQueue.length){
+        const input = inputQueue.shift();
+        try{
+            input.handler(event, input.resolve, input.reject);
+        }catch(ex){
+            inputQueue.unshift(input);
+        }
+    }
+};
+
 const attachInputGenerator = (eventType)=>{
     const handler = (event)=>{
-        if(inputQueue.length){
-            const input = inputQueue.shift();
-            try{
-                input.handler(event, input.resolve, input.reject);
-            }catch(ex){
-                inputQueue.unshift(input);
-            }
-        }
+        return inputHandler(event, inputQueue);
     };
     window.addEventListener('load', (event) => {
         document.body.addEventListener(eventType, handler, false);
@@ -116,19 +121,34 @@ const attachInputGenerator = (eventType)=>{
     //document.body.addEventListener(eventType, handler, false);
 };
 
-if(isClient){
-    attachInputGenerator('mousedown');
-    // mousemove is cleanest, but seems unreliable
-    // attachInputGenerator('mousemove');
-}
+export const setInputHandler = (handler)=>{
+    inputHandler = handler;
+};
 
-const wantInput = async (id, handler, cache)=>{
+let wantInput = async (id, handler, cache)=>{
     const promise = new Promise((resolve, reject)=>{
         inputQueue.push({ resolve, reject, handler });
     });
     const input = await promise;
     return await input;
 };
+
+//this delivers a set of bindables to a bind target so they can respond to events
+export const bindInput = ()=>{
+    return (wants)=>{
+        return {
+            'mousedown':(e)=>{ console.log('MD handler', e) }
+        };
+    };
+};
+
+if(isClient){
+    // this is only so things work out of the box by clicking on the page
+    // anything other than a test/demo needs better behavior
+    attachInputGenerator('mousedown');
+    // mousemove is cleanest, but seems unreliable
+    // attachInputGenerator('mousemove');
+}
 
 const globalFileHandleCache = {read:{}, write:{}};
 

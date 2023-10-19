@@ -1,19 +1,26 @@
 /* global describe:false */
 import { chai } from '@environment-safe/chai';
-import { it, configure } from '@open-automaton/moka';
-import { File, Path } from '../src/index.mjs';
+import { it, configure, bind } from '@open-automaton/moka';
+import { File, Path, bindInput } from '../src/index.mjs';
+bind(bindInput()); //this enables the `wantsInput` config
 const should = chai.should();
 
 describe('@environment-safe/file', ()=>{
     describe('performs a simple test suite', ()=>{
+        const testKnownDirectory = 'videos';
         const filesystemName = Path.join(
-            Path.location('videos'), 
+            Path.location(testKnownDirectory), 
             `file${Math.floor( Math.random() * 1000000)}`
         );
         configure({
             dialog : (context, actions)=>{
+                //when a dialog comes up, say OK
                 actions.confirm();
-            } 
+            },
+            wantsInput : (context, actions)=>{
+                //when the system wants user input, click on something
+                actions.click('#mocha-report');
+            }
         });
         //*
         it(`creates, saves, loads & deletes ${filesystemName}`, async function(){
@@ -33,14 +40,14 @@ describe('@environment-safe/file', ()=>{
         
         it('lists file in user\'s documents dir', async function(){
             //assumes you have some file in your documents directory
-            const list = await File.list(Path.location('documents'), {
+            const list = await File.list(Path.location(testKnownDirectory), {
                 files: true,
                 directories: false
             });
             should.exist(list);
             should.exist(list[0]);
             const file = new File(Path.join(
-                Path.location('documents'), 
+                Path.location(testKnownDirectory), 
                 list[0]
             ));
             await file.load();

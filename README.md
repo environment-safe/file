@@ -50,7 +50,7 @@ You can load a file relative to the a fully specified directory, for example `ba
 const file = new File(Path.join(Path.location('home'), 'baz.info'));
 ```
 
-You can load a file relative to the a relative directory, for example `package.json` in `../node_modules/dep`:
+You can load a file relative to the web root, for example `package.json` in `../node_modules/dep`:
 ```javascript
 const file = new File('../node_modules/dep/package.json'));
 ```
