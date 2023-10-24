@@ -136,7 +136,7 @@ export class Path{
         if((to.indexOf(':\\')) === 1){
             return windowsRelative(to, from);
         }else{
-            return posix.relative(to, from);
+            return posix.relative(to, from || Path.current);
         }
     }
     
@@ -160,17 +160,27 @@ export class Path{
                 base: name.split('.').shift()
             };
         }else{
-            if((url.indexOf('://')) !== -1){
-                result.url = new URL(url);
-            }else{
-                if(url[0] === '.') result.type = 'relative';
-                else result.type = 'absolute';
-                result.posix = posix.parse(url);
+            if((url.indexOf('file://')) === 0){
+                result.posix = posix.parse(url.substring(7));
                 if(result.posix.dir && result.posix.dir[0] === '!'){
                     const target = result.posix.dir.substring(1);
                     result.posix.original = result.posix.dir;
                     result.posix.known = target.toLowerCase();
                     result.posix.dir = this.location(target.toLowerCase());
+                }
+            }else{
+                if((url.indexOf('://')) !== -1){
+                    result.url = new URL(url);
+                }else{
+                    if(url[0] === '.') result.type = 'relative';
+                    else result.type = 'absolute';
+                    result.posix = posix.parse(url);
+                    if(result.posix.dir && result.posix.dir[0] === '!'){
+                        const target = result.posix.dir.substring(1);
+                        result.posix.original = result.posix.dir;
+                        result.posix.known = target.toLowerCase();
+                        result.posix.dir = this.location(target.toLowerCase());
+                    }
                 }
             }
         }
@@ -199,7 +209,7 @@ export class Path{
                         throw new Error('Path is outside of addressable locations');
                     }
                 }
-                const relativePath = Path.relative(Path.current, url)
+                const relativePath = Path.relative(Path.current, url);
                 const prefix = relativePath[0]=='.'?'':type+'//';
                 const result = `${prefix}${relativePath}`;
                 return result;
@@ -250,6 +260,7 @@ export class Path{
                     const posixPath = windowsPath
                     return posixPath;
                 }
+                //it was parsed as a url
                 return '';
             //anything else must be a relative path or url
             default: 
@@ -423,7 +434,7 @@ var posix = {
             if (i >= 0)
                 path = arguments[i];
             else {
-                if(cwd === undefined) cwd = process.cwd();
+                if(cwd === undefined) cwd = Path.current;
                 path = cwd;
             }
     

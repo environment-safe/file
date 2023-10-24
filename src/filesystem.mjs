@@ -75,6 +75,9 @@ const getFilePickerOptions = (path)=>{
         }];
         options.excludeAcceptAllOption = true;
     }
+    //global hell 
+    // here we need to push this into a global because there is no way to scope drill 
+    globalThis._lastFilePickerOptions = options;
     return options;
 };
 
@@ -118,14 +121,13 @@ const attachInputGenerator = (eventType)=>{
     window.addEventListener('load', (event) => {
         document.body.addEventListener(eventType, handler, false);
     });
-    //document.body.addEventListener(eventType, handler, false);
 };
 
 export const setInputHandler = (handler)=>{
     inputHandler = handler;
 };
 
-let wantInput = async (id, handler, cache)=>{
+let wantInput = async (type, id, handler, cache)=>{
     const promise = new Promise((resolve, reject)=>{
         inputQueue.push({ resolve, reject, handler });
     });
@@ -136,8 +138,14 @@ let wantInput = async (id, handler, cache)=>{
 //this delivers a set of bindables to a bind target so they can respond to events
 export const bindInput = ()=>{
     return (wants)=>{
+        wantInput = wants;
         return {
-            'mousedown':(e)=>{ console.log('MD handler', e) }
+            'mousedown':(e)=>{ 
+                // event monitor (not currently used)
+            },
+            'click':(e)=>{ 
+                // event monitor (not currently used)
+            }
         };
     };
 };
@@ -154,7 +162,7 @@ const globalFileHandleCache = {read:{}, write:{}};
 
 const fileHandle = async (path, options)=>{
     if(options.isDirectory){
-        const dirHandle = await wantInput(location, (event, resolve, reject)=>{
+        const dirHandle = await wantInput('click', location, (event, resolve, reject)=>{
             const options = getFilePickerOptions(path);
             try{
                 let found = false;
@@ -176,7 +184,7 @@ const fileHandle = async (path, options)=>{
         return dirHandle
     }else{
         if(options.isWritable){
-            const newHandle = await wantInput(location, (event, resolve, reject)=>{
+            const newHandle = await wantInput('click', location, (event, resolve, reject)=>{
                 const options = getFilePickerOptions(path);
                 try{
                     window.showSaveFilePicker(options).then((thisHandle)=>{
@@ -190,7 +198,7 @@ const fileHandle = async (path, options)=>{
             }, options.cache && options.cache.write);
             return newHandle;
         }else{
-            return await wantInput(location, (event, resolve, reject)=>{
+            return await wantInput('click', location, (event, resolve, reject)=>{
                 const options = getFilePickerOptions(path);
                 try{
                     window.showOpenFilePicker(options).then(([ handle ])=>{
@@ -221,7 +229,7 @@ export const localFile = {
                 }
             },
             list: async(path, options={})=>{
-                
+                const dirHandle = await window.showDirectoryPicker();
             },
             create: async (path, options={})=>{
                 try{
@@ -240,7 +248,9 @@ export const localFile = {
             read: async (path, options={})=>{
                 try{
                     const handle = await fileHandle(path, options);
-                    return handle;
+                    const file = await handle.getFile();
+                    const result = await file.arrayBuffer();
+                    return result;
                 }catch(ex){
                     console.log(ex);
                     return false;
@@ -396,8 +406,12 @@ export const remote = {
         const protocol = 'https:';
         return {
             exists: async(path, options={})=>{
-                const response = await fetch((new Path(path)).toUrl(protocol));
-                return !!response;
+                try{
+                    const response = await fetch(path);
+                    return response.status === 200;
+                }catch(ex){
+                    return false;
+                }
             },
             list: async(path, options={})=>{
                 // the only real option here is to scrape by browser
@@ -407,11 +421,23 @@ export const remote = {
                 throw new Error('Unsupported');
             },
             read: async (path, options={})=>{
-                const response = await fetch((new Path(path)).toUrl(protocol));
-                return await response.json();
+                const response = await fetch(path);
+                return await response.arrayBuffer();
             },
             write: async (path, buffer, options={})=>{
-                throw new Error('Unsupported');
+                return await new Promise((resolve, reject)=>{
+                    var element = document.createElement('a');
+                    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(
+                        FileBuffer.to('string', buffer)
+                    ));
+                    const filename = path.split('/').pop();
+                    element.setAttribute('download', filename);
+                    element.style.display = 'none';
+                    document.body.appendChild(element);
+                    element.click();
+                    document.body.removeChild(element);
+                    resolve();
+                });
             },
             delete: async (path, options={})=>{
                 throw new Error('Unsupported');

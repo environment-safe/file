@@ -1,12 +1,3 @@
-/*
-import { isBrowser, isJsDom } from 'browser-or-node';
-import * as mod from 'module';
-import * as path from 'path';
-let internalRequire = null;
-if(typeof require !== 'undefined') internalRequire = require;
-const ensureRequire = ()=> (!internalRequire) && (internalRequire = mod.createRequire(import.meta.url));
-//*/
-
 /**
  * A JSON object
  * @typedef { object } JSON
@@ -20,6 +11,7 @@ import { FileBuffer } from './buffer.mjs';
 import {
     isServer, // is running on a server runtime
     isLocalFileRoot, // run within a page using a file: url
+    variables
 } from '@environment-safe/runtime-context';
 import { localFile as lf, serverFile as sf, file as f, remote as r, setInputHandler, bindInput} from './filesystem.mjs';
 import { Path } from './path.mjs';
@@ -27,245 +19,112 @@ export { Path, setInputHandler, bindInput };
 const handleCanonicalPath = (dir, os, user)=>{
     
 };
-/*export const nativePathJoin = (...parts)=>{ //returns buffer, eventually stream
-    if(isBrowser || isJsDom){
-        return parts.join(fileSeparator);
-    }else{
-        return path.join.apply(path, parts);
-    }
-};
-
-export const webPathJoin = (...parts)=>{ //returns buffer, eventually stream
-    return parts.join('/');
-};
-
-const makeLocation = (path, dir, baseDir=File.directory.current)=>{
-    const transformedDir = dir?handleCanonicalPath(dir, File.os, File.user):null;
-    const isRelative = (transformedDir || path)[0] === '.' || (
-        (transformedDir || path)[1] !== ':' && // windows drive root
-        (transformedDir || path)[0] !== '/' // *nix filesystem root
-    );
-    const isFileUrl = (dir && dir.startsWith('file:')) || path.startsWith('file:');
-    const isFileLocation = isFileUrl || transformedDir !== dir;
-    if(isLocalFileRoot){
-        //glue together an absolute path with a file protocol, no matter what we get
-        //if a web url, rebuild 
-        if(isRelative){
-            const absolutePath = transformedDir?
-                nativePathJoin(baseDir, transformedDir, path):
-                nativePathJoin(baseDir, path);
-            return `file://${absolutePath}`;
-        }
-    }
-    if(isUrlRoot){
-        //match the incoming format and output the correct location
-        if(isRelative){
-            let absolutePath = null;
-            if(isFileLocation){ //only if it was a known dir
-                absolutePath = transformedDir?
-                nativePathJoin(baseDir, transformedDir, path):
-                nativePathJoin(baseDir, path);
-            }else{
-                absolutePath = transformedDir?
-                webPathJoin(baseDir, transformedDir, path):
-                webPathJoin(baseDir, path);
-            }
-            return pathRelativeTo(absolutePath, File.directory.current);
-        }else{
-            let absolutePath = null;
-            if(isFileLocation){
-                absolutePath = transformedDir?
-                nativePathJoin(transformedDir, path):
-                nativePathJoin(File.directory.current, path);
-            }else{
-                absolutePath = transformedDir?
-                webPathJoin(transformedDir, path):
-                webPathJoin(File.directory.current, path);
-            }
-            return `file://${absolutePath}`;
-        }
-    }
-    if(isServerRoot){
-        return transformedDir?
-        nativePathJoin(transformedDir, path):
-        nativePathJoin(baseDir, path);
-    }
-};*/
 
 let localFile=null;
 let serverFile=null;
 let file=null;
 let remote=null;
-let inited=false;
 
-export const initialized = async (path, options)=>{
-    if(inited) return;
+export const initialized = async (path, options={})=>{
     if(isServer){
+        if(serverFile) return;
         serverFile = await sf.initialize();
-        inited = true;
     }else{
         if(isLocalFileRoot){
-            localFile = await lf.initialize();
-            inited = true;
+            if(file) return;
+            file = await f.initialize();
         }else{
-            if(path.indexOf('file://') !== -1){
-                //file: url
-                localFile = await lf.initialize();
-                inited = true;
+            if(path.indexOf('://') !== -1){
+                if(path.indexOf('file://') === 0){
+                    try{
+                        const relativePath = Path.relative(path);
+                    }catch(ex){
+                        //if it's not
+                        // 1) A file url root
+                        // 2) within the web root
+                        // we have no idea what to do
+                        console.log(ex);
+                        throw new Error(`Could not resolve path:${path}`);
+                    }
+                }
+                if(remote) return;
+                //remote url
+                remote = await r.initialize();
             }else{
-                if(path.indexOf('://') !== -1){
-                    //remote url
-                    remote = await r.initialize();
-                    inited = true;
-                }else{
+                if(options.filesystemAPI){
+                    if(localFile) return;
                     //an absolute or relative file path
                     localFile = await lf.initialize();
-                    inited = true;
+                }else{
+                    if(remote) return;
+                    //remote url
+                    remote = await r.initialize();
                 }
             }
         }
     }
 };
 
-export const read = async (path, options)=>{
-    await initialized(path);
+export const act = async (action, ...args)=>{
+    const path = args[0];
+    const options = args[1] || {};
+    await initialized(path, options);
     if(isServer){
-        return serverFile.read(path, options);
+        return serverFile[action].apply(serverFile, args);
     }else{
         if(isLocalFileRoot){
-            return localFile.read(path, options);
+            return file[action].apply(file, args);
         }else{
-            if(path.indexOf('file://') !== -1){
-                //file: url
-                return localFile.read(path, options);
+            if(path.indexOf('://') !== -1){
+                if(path.indexOf('file://') === 0){
+                    try{
+                        const currentProtocol = variables.location?variables.location.protocol:'http:';
+                        const relativePath = Path.from(path).toUrl(currentProtocol, true);
+                        args[0] = '../'+relativePath;
+                    }catch(ex){
+                        //if it's not
+                        // 1) A file url root
+                        // 2) within the web root
+                        // we have no idea what to do
+                        throw new Error(`Could not resolve path:${path}`);
+                    }
+                }
+                return remote[action].apply(remote, args);
+                
             }else{
-                if(path.indexOf('://') !== -1){
-                    //remote url
-                    return remote.read(path, options);
+                if(options.filesystemAPI){
+                    return localFile[action].apply(localFile, args);
                 }else{
-                    //an absolute or relative file path
-                    return localFile.read(path, options);
+                    return remote[action].apply(remote, args);
                 }
             }
         }
     }
+};
+
+//*
+export const read = async (path, options)=>{
+    return await act('read', path, options);
 };
 
 export const list = async (path, options)=>{
-    await initialized(path);
-    if(isServer){
-        return serverFile.list(path, options);
-    }else{
-        if(isLocalFileRoot){
-            return localFile.list(path, options);
-        }else{
-            if(path.indexOf('file://') !== -1){
-                //file: url
-                return localFile.list(path, options);
-            }else{
-                if(path.indexOf('://') !== -1){
-                    //remote url
-                    return remote.list(path, options);
-                }else{
-                    //an absolute or relative file path
-                    return localFile.list(path, options);
-                }
-            }
-        }
-    }
+    return await act('list', path, options);
 };
 
 export const write = async (path, buffer, options)=>{
-    await initialized(path);
-    if(isServer){
-        return serverFile.write(path, buffer, options);
-    }else{
-        if(isLocalFileRoot){
-            return localFile.write(path, buffer, options);
-        }else{
-            if(path.indexOf('file://') !== -1){
-                //file: url
-                return localFile.write(path, buffer, options);
-            }else{
-                if(path.indexOf('://') !== -1){
-                    //remote url
-                    return remote.write(path, buffer, options);
-                }else{
-                    //an absolute or relative file path
-                    return localFile.write(path, buffer, options);
-                }
-            }
-        }
-    }
+    return await act('write', path, buffer, options);
 };
+
 export const create = async (path)=>{
-    await initialized(path);
-    if(isServer){
-        return serverFile.create(path);
-    }else{
-        if(isLocalFileRoot){
-            return localFile.create(path);
-        }else{
-            if(path.indexOf('file://') !== -1){
-                //file: url
-                return localFile.create(path);
-            }else{
-                if(path.indexOf('://') !== -1){
-                    //remote url
-                    return remote.create(path);
-                }else{
-                    //an absolute or relative file path
-                    return localFile.create(path);
-                }
-            }
-        }
-    }
+    return await act('create', path);
 };
+
 export const exists = async (path)=>{
-    await initialized(path);
-    if(isServer){
-        return serverFile.exists(path);
-    }else{
-        if(isLocalFileRoot){
-            return localFile.exists(path);
-        }else{
-            if(path.indexOf('file://') !== -1){
-                //file: url
-                return file.exists(path);
-            }else{
-                if(path.indexOf('://') !== -1){
-                    //remote url
-                    return remote.exists(path);
-                }else{
-                    //an absolute or relative file path
-                    return await localFile.exists(path);
-                }
-            }
-        }
-    }
+    return await act('exists', path);
 };
+
 export const remove = async (path)=>{
-    await initialized(path);
-    if(isServer){
-        return serverFile.delete(path);
-    }else{
-        if(isLocalFileRoot){
-            return localFile.delete(path);
-        }else{
-            if(path.indexOf('file://') !== -1){
-                //file: url
-                return localFile.delete(path);
-            }else{
-                if(path.indexOf('://') !== -1){
-                    //remote url
-                    return remote.delete(path);
-                }else{
-                    //an absolute or relative file path
-                    return localFile.delete(path);
-                }
-            }
-        }
-    }
+    return await act('delete', path);
 };
 
 const internalCache = {};
@@ -281,7 +140,7 @@ export class File{
         //one of: desktop, documents, downloads, music, pictures, videos
         this.directory = options.directory || '.';
         this.path = location;
-        this.buffer = new FileBuffer();
+        this.setBuffer(FileBuffer.from(''));
     }
     
     async save(){
@@ -289,25 +148,23 @@ export class File{
         return this;
     }
     
-    async load(){
-        const handle = await read(this.path, this.options);
-        const file = await handle.getFile();
-        this.buffer = await file.arrayBuffer();
+    setBuffer(buffer){
+        this.buffer = buffer;
         if(!this.buffer) throw new Error(`Error: ${this.path} ${this.options}`);
         this.buffer.cast = (type)=>{
             return FileBuffer.to(type, this.buffer);
         };
+    }
+    
+    async load(){
+        this.setBuffer(await read(this.path, this.options));
         return this;
     }
     
     body(value){
         if(value === null || value === undefined) return this.buffer;
-        this.buffer = FileBuffer.from(value);
-        this.buffer.cast = (type)=>{
-            return FileBuffer.to(type, this.buffer);
-        };
-        if(value) return this;
-        return this.buffer;
+        this.setBuffer(FileBuffer.from(value));
+        return this;
     }
     
     async info(){
@@ -327,3 +184,45 @@ export class File{
         return await list(path, options);
     }
 }
+
+let staticInstance = null;
+export class Download{
+    constructor(){
+        if(staticInstance) return staticInstance;
+        this.promise = null;
+        staticInstance = this;
+    }
+    expect(){
+        this.promise = new Promise((resolve)=>{
+            this.resolve = resolve;
+        });
+        //if(isServer) this.flushPromise();
+        return this.promise;
+    }
+    flushPromise(result){
+        if(this.resolve){
+            this.resolve(result);
+            this.resolve = null;
+        }
+        this.promise = null;
+    }
+    async observe(download){
+        try{
+            const text = await download.text();
+            this.flushPromise(text);
+        }catch(ex){ }
+    }
+};
+
+(()=>{
+    globalThis.handleDownload = async (download)=>{
+        const root = Path.location('downloads');
+        const file = download.suggestedFilename();
+        const path = Path.join(root, file);
+        await download.saveAs(path);
+    };
+    if(variables.moka && variables.moka.bind){
+        //bind the input mechanics of File to moka
+        variables.moka.bind(bindInput());
+    }
+})();

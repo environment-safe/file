@@ -36,6 +36,7 @@
         "url": "https://github.com/environment-safe/file/issues"
     },
     "moka": {
+        "headless":false,
         "firefox": {
             "engine": "@open-automaton/playwright-mining-engine",
             "options": {
@@ -115,6 +116,7 @@
     "dependencies": {
         "@environment-safe/package": "^0.2.0",
         "@environment-safe/runtime-context": "^0.0.1",
+        "@open-automaton/playwright-mining-engine": "^0.2.1",
         "browser-or-node": "^2.1.1",
         "typescript": "^5.2.2"
     }
