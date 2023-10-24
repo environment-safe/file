@@ -1,6 +1,6 @@
 {
     "name": "@environment-safe/file",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "type": "module",
     "main": "dist/index.mjs",
     "module": "src/index.mjs",
@@ -36,7 +36,6 @@
         "url": "https://github.com/environment-safe/file/issues"
     },
     "moka": {
-        "headless":false,
         "firefox": {
             "engine": "@open-automaton/playwright-mining-engine",
             "options": {
@@ -77,7 +76,7 @@
         "@environment-safe/chai": "^0.1.0",
         "@environment-safe/commonjs-builder": "^0.0.3",
         "@environment-safe/jsdoc-builder": "^0.0.2",
-        "@open-automaton/moka": "^0.3.0",
+        "@open-automaton/moka": "^0.4.0",
         "babel-plugin-search-and-replace": "^1.1.1",
         "babel-plugin-transform-import-meta": "^2.2.0",
         "chai": "^4.3.7",
@@ -103,7 +102,7 @@
         "build-commonjs": "./node_modules/@environment-safe/commonjs-builder/bin/build.mjs",
         "local-server": "open 'http://localhost:8085/' ; npx http-server -p 8085",
         "headless-browser-test": "npm run headless-chrome-test; npm run headless-firefox-test; npm run headless-safari-test",
-        "headless-chrome-test": "moka --server . --browser chrome --relaxed --prefix ../ test/test.mjs",
+        "headless-chrome-test": "moka --server . --browser chrome test/test.mjs",
         "headless-firefox-test": "moka --server . --browser firefox --relaxed --prefix ../ test/test.mjs",
         "headless-safari-test": "moka --server . --browser safari --relaxed --prefix ../ test/test.mjs",
         "browser-test": "moka --server . --local-browser test/test.mjs",
@@ -116,7 +115,6 @@
     "dependencies": {
         "@environment-safe/package": "^0.2.0",
         "@environment-safe/runtime-context": "^0.0.1",
-        "@open-automaton/playwright-mining-engine": "^0.2.1",
         "browser-or-node": "^2.1.1",
         "typescript": "^5.2.2"
     }

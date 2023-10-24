@@ -1,3 +1,4 @@
+/* eslint-disable no-case-declarations */
 import * as os from 'os'; 
 import { 
     isBrowser,
@@ -201,6 +202,7 @@ export class Path{
                 if(!Path.within(Path.current, url)){
                     //uh oh, looks like we're outside the web root
                     let location = null;
+                    // eslint-disable-next-line no-cond-assign
                     if(location = Path.isLocation(url)){
                         const result = `::${location.location}/${location.remainingPath}`;
                         result.parsed = location;
@@ -214,7 +216,7 @@ export class Path{
                 const result = `${prefix}${relativePath}`;
                 return result;
             case 'file:':
-                let res = null
+                let res = null;
                 if(relative){
                     res = `${ Path.relative(Path.current, this.toUrl('native')).replace(/\\/g, '/') }`;
                 }
@@ -257,7 +259,7 @@ export class Path{
                         windowsPath = `${windowsRelative(relativeTo, windowsPath)}`;
                     }
                     windowsPath = windowsPath.replace(/[A-Z]:/g, '');
-                    const posixPath = windowsPath
+                    const posixPath = windowsPath;
                     return posixPath;
                 }
                 //it was parsed as a url

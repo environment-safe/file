@@ -25,10 +25,6 @@ import { Path } from './path.mjs';
 
 //TODO: browser filesystem contexts
 
-const trimLeadingPath = (path)=>{
-    return path[0] === '/'?path.substring(0):path;
-}
-
 const mimesBySuffix = {
     json : 'application/json',
     jpg : 'image/jpeg',
@@ -158,7 +154,7 @@ if(isClient){
     // attachInputGenerator('mousemove');
 }
 
-const globalFileHandleCache = {read:{}, write:{}};
+//const globalFileHandleCache = {read:{}, write:{}};
 
 const fileHandle = async (path, options)=>{
     if(options.isDirectory){
@@ -167,11 +163,11 @@ const fileHandle = async (path, options)=>{
             try{
                 let found = false;
                 window.showDirectoryPicker(options).then(async (thisHandle)=>{
-                    const values = (await thisHandle.values())
+                    const values = (await thisHandle.values());
                     if(values){
                         for await (const entry of values){
                             found = found || entry.name === options.suggestedName;
-                        };
+                        }
                     }
                     resolve(found);
                 }).catch((ex)=>{
@@ -181,7 +177,7 @@ const fileHandle = async (path, options)=>{
                 reject(ex);
             }
         }, options.cache && options.cache.write);
-        return dirHandle
+        return dirHandle;
     }else{
         if(options.isWritable){
             const newHandle = await wantInput('click', location, (event, resolve, reject)=>{
@@ -212,7 +208,7 @@ const fileHandle = async (path, options)=>{
             }, options.cache && options.cache.read);
         }
     }
-}
+};
 
 // END INPUT HACK
 
@@ -229,7 +225,7 @@ export const localFile = {
                 }
             },
             list: async(path, options={})=>{
-                const dirHandle = await window.showDirectoryPicker();
+                //const dirHandle = await window.showDirectoryPicker();
             },
             create: async (path, options={})=>{
                 try{
@@ -372,7 +368,7 @@ export const file = { //using a file url uses different rules
             exists: async(path, options={})=>{
                 const url = (new Path(path)).toUrl(options.type);
                 if(url.parsed){
-                    if(browserLocations.indexOf(url.parsed.location) !== -1 ){
+                    if(Path.browserLocations.indexOf(url.parsed.location) !== -1 ){
                         return localFile.exists(url.parsed, {});
                     }
                 }
@@ -380,14 +376,14 @@ export const file = { //using a file url uses different rules
                 return response.status === 200;
             },
             list: async(path, options={})=>{
-                const dirHandle = await window.showDirectoryPicker();
+                //const dirHandle = await window.showDirectoryPicker();
                 
             },
             create: async (path, options={})=>{
                 throw new Error('Unsupported');
             },
             read: async (path, options={})=>{
-                const url = (new Path(path)).toUrl(options.type)
+                const url = (new Path(path)).toUrl(options.type);
                 const response = await fetch(url);
                 return await response.json();
             },
@@ -403,7 +399,7 @@ export const file = { //using a file url uses different rules
 export const remote = {
     initialize : async ()=>{
         //todo: support http
-        const protocol = 'https:';
+        //const protocol = 'https:';
         return {
             exists: async(path, options={})=>{
                 try{
@@ -415,7 +411,12 @@ export const remote = {
             },
             list: async(path, options={})=>{
                 // the only real option here is to scrape by browser
-                await fetch((new Path(path)).toUrl(protocol));
+                const response = await fetch('file://'+path);
+                const text = await response.text();
+                if(text.indexOf('Cannot GET '+path)===-1){
+                    throw new Error(`Could not find directory: ${path}`);
+                }
+                return text;
             },
             create: async (path, options={})=>{
                 throw new Error('Unsupported');

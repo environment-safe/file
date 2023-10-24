@@ -37,7 +37,7 @@ export const initialized = async (path, options={})=>{
             if(path.indexOf('://') !== -1){
                 if(path.indexOf('file://') === 0){
                     try{
-                        const relativePath = Path.relative(path);
+                        Path.relative(path);
                     }catch(ex){
                         //if it's not
                         // 1) A file url root
@@ -207,12 +207,10 @@ export class Download{
         this.promise = null;
     }
     async observe(download){
-        try{
-            const text = await download.text();
-            this.flushPromise(text);
-        }catch(ex){ }
+        const text = await download.text();
+        this.flushPromise(text);
     }
-};
+}
 
 (()=>{
     globalThis.handleDownload = async (download)=>{
