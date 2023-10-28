@@ -89,7 +89,8 @@ describe('@environment-safe/file', ()=>{
             file.body('foo!');
             const anticipatedDownload = download.expect();
             await file.save();
-            const downloadedText = await anticipatedDownload;
+            const result = await anticipatedDownload;
+            const downloadedText = await result.text();
             downloadedText.should.equal('foo!');
         });
         

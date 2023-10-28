@@ -207,8 +207,8 @@ export class Download{
         this.promise = null;
     }
     async observe(download){
-        const text = await download.text();
-        this.flushPromise(text);
+        const result = await download;
+        this.flushPromise(result);
     }
 }
 
