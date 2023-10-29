@@ -1,6 +1,6 @@
 {
     "name": "@environment-safe/file",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "type": "module",
     "main": "dist/index.mjs",
     "module": "src/index.mjs",
@@ -76,7 +76,7 @@
         "@environment-safe/chai": "^0.1.0",
         "@environment-safe/commonjs-builder": "^0.0.3",
         "@environment-safe/jsdoc-builder": "^0.0.2",
-        "@open-automaton/moka": "^0.4.0",
+        "@open-automaton/moka": "^0.4.1",
         "babel-plugin-search-and-replace": "^1.1.1",
         "babel-plugin-transform-import-meta": "^2.2.0",
         "chai": "^4.3.7",
