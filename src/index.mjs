@@ -15,7 +15,7 @@ import {
 } from '@environment-safe/runtime-context';
 import { localFile as lf, serverFile as sf, file as f, remote as r, setInputHandler, bindInput} from './filesystem.mjs';
 import { Path } from './path.mjs';
-export { Path, setInputHandler, bindInput };
+export { Path, setInputHandler, bindInput, FileBuffer };
 const handleCanonicalPath = (dir, os, user)=>{
     
 };
@@ -129,6 +129,37 @@ export const remove = async (path)=>{
 
 const internalCache = {};
 
+const mimeTypes = [
+    {
+        check: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+        mime: 'image/png'
+    },
+    {
+        check: [0xff, 0xd8, 0xff],
+        mime: 'image/jpeg'
+    },
+    {
+        check: [0x47, 0x49, 0x46, 0x38],
+        mime: 'image/gif'
+    }
+];
+
+const checkOne = (headers)=>{
+    return (buffers, options = { offset: 0 }) =>
+        headers.every(
+            (header, index) => header === buffers[options.offset + index]
+        );
+};
+
+const checks = {};
+
+const mimeFromBuffer = (buffer)=>{
+    return mimeTypes.reduce((agg, type)=>{
+        if(!checks[type.check]) checks[type.check] = checkOne(type.check);
+        return agg || (checks[type.check](buffer) && type.mime)
+    }, false);
+};
+
 export class File{
     constructor(path, options={}){
         //todo: clean this rats nest up
@@ -164,7 +195,25 @@ export class File{
     body(value){
         if(value === null || value === undefined) return this.buffer;
         this.setBuffer(FileBuffer.from(value));
+        this.options.mimeType = this.mimeType();
+        this.options.format = this.format(this.options.mimeType);
         return this;
+    }
+    
+    mimeType(){
+        if(!this.derivedMIMEType){
+            this.derivedMIMEType = File.deriveMIMEType(this.body());
+        }
+        return this.derivedMIMEType;
+    }
+    
+    format(){
+        if(!this.derivedMIMEType) this.mimeType();
+        return File.deriveFormat(this.derivedMIMEType);
+    }
+    
+    toDataURL(){
+        return `data:${this.mimeType()};${this.format()},${FileBuffer.toString('base64', this.body())}`
     }
     
     async info(){
@@ -174,6 +223,23 @@ export class File{
     async 'delete'(){
         await remove(this.path, this.options);
         return this;
+    }
+    
+    static deriveMIMEType(bytes){
+        //if we can't detect a binary format and it wasn't manually set, assume it's text
+        // TODO: manually detect incompatible bytes and provide optional warning
+        return mimeFromBuffer(bytes) || 'text/plain';
+    }
+    
+    static deriveFormat(mimeType){
+        switch(mimeType.toLowerCase()){
+            case 'image/png':
+            case 'image/jpeg':
+            case 'image/gif':
+                return 'base64';
+            case 'text/plain':
+                return 'charset=utf-8';
+        }
     }
     
     static async exists(path, directory){
@@ -212,12 +278,26 @@ export class Download{
     }
 }
 
+const saveListeners = [];
+export const addEventListener = (event, handler) =>{
+    //TODO: support more than save
+    if(event !== 'write') throw new Error('unsupported');
+    saveListeners.push(handler);
+};
+
+
+
 (()=>{
     globalThis.handleDownload = async (download)=>{
         const root = Path.location('downloads');
         const file = download.suggestedFilename();
         const path = Path.join(root, file);
         await download.saveAs(path);
+    };
+    globalThis.handleWrite = async (save)=>{
+        saveListeners.forEach((handler)=>{
+            handler(save);
+        });
     };
     if(variables.moka && variables.moka.bind){
         //bind the input mechanics of File to moka

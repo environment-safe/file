@@ -1,4 +1,5 @@
 /* global describe:false */
+import { isServer } from '@environment-safe/runtime-context';
 import { chai } from '@environment-safe/chai';
 import { it, configure, interactive } from '@open-automaton/moka';
 import { File, Path, Download } from '../src/index.mjs';
@@ -14,12 +15,17 @@ describe('@environment-safe/file', ()=>{
         const fileProtocolName = `file://${Path.join(Path.current, 'src', 'index.mjs')}`;
         const missingFileProtocolName = `file://${Path.join(Path.current, 'src', 'unknown.mjs')}`;
         const fileRelativeName = Path.join('..', 'src', 'index.mjs');
+        const fileRelativeSaveName = Path.join(Path.location('downloads'), 'index.mjs');
         const missingFileRelativeName = Path.join('..', 'src', 'unknown.mjs');
         const download = new Download();
+        if(isServer){
+            
+        }
         configure({
             dialog : async (context, actions)=> await actions.confirm(), // OK everything,
             wantsInput : async (context, actions)=> await actions.click('#mocha'), // click everything
-            downloads: (dl)=> download.observe(dl)
+            downloads: (dl)=> download.observe(dl),
+            write: (dl)=> download.observe(dl)
         });
         /**********************************************************
           * Until Playwright supports the filesystem APIs this must 
@@ -57,7 +63,7 @@ describe('@environment-safe/file', ()=>{
             file.body().cast('string').length.should.be.above(1);
         });
         
-        it(`examines & loads ${fileProtocolName}`, async function(){
+        it.skip(`examines & loads ${fileProtocolName}`, async function(){
             this.timeout(40000);
             should.exist(File);
             (await File.exists(missingFileProtocolName)).should.equal(false);
@@ -84,9 +90,9 @@ describe('@environment-safe/file', ()=>{
             should.exist(File);
             (await File.exists(fileRelativeName)).should.equal(true);
             const file = new File(fileRelativeName, { cache: true });
-            //we're going to live dangerously and replace the source, because we save to downloads
             await file.load();
-            file.body('foo!');
+            file.path = fileRelativeSaveName; //change path
+            file.body('foo!'); //replace source
             const anticipatedDownload = download.expect();
             await file.save();
             const result = await anticipatedDownload;

@@ -22,7 +22,6 @@ import {
 } from '@environment-safe/runtime-context';
 import { Path } from './path.mjs';
 //TODO: Streaming
-
 //TODO: browser filesystem contexts
 
 const mimesBySuffix = {
@@ -343,6 +342,15 @@ export const serverFile = {
                 return await new Promise((resolve, reject)=>{
                     fs.writeFile(url, buffer, (err)=>{
                         if(err) return reject(err);
+                        if(globalThis.handleWrite) globalThis.handleWrite({
+                            path,
+                            url,
+                            buffer,
+                            text: ()=>{
+                                return FileBuffer.toString('string', buffer)
+                            },
+                            arrayBuffer: ()=> buffer,
+                        }); 
                         resolve();
                     });
                 });
@@ -427,17 +435,27 @@ export const remote = {
             },
             write: async (path, buffer, options={})=>{
                 return await new Promise((resolve, reject)=>{
-                    var element = document.createElement('a');
-                    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(
-                        FileBuffer.to('string', buffer)
-                    ));
-                    const filename = path.split('/').pop();
-                    element.setAttribute('download', filename);
-                    element.style.display = 'none';
-                    document.body.appendChild(element);
-                    element.click();
-                    document.body.removeChild(element);
-                    resolve();
+                    try{
+                        var element = document.createElement('a');
+                        const type = options.mimeType || 'text/plain';
+                        const format = options.format || 'charset=utf-8';
+                        const representation = (
+                            type === 'text/plain'?
+                            FileBuffer.toString('text', buffer):
+                            FileBuffer.toString('base64', buffer)
+                        );
+                        const dataURI = `data:${type};${format},${representation}`;
+                        element.setAttribute('href', dataURI);
+                        const filename = path.split('/').pop();
+                        element.setAttribute('download', filename);
+                        element.style.display = 'none';
+                        document.body.appendChild(element);
+                        element.click();
+                        document.body.removeChild(element);
+                        resolve();
+                    }catch(ex){
+                        reject(ex);
+                    }
                 });
             },
             delete: async (path, options={})=>{

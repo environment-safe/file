@@ -1,6 +1,6 @@
 {
     "name": "@environment-safe/file",
-    "version": "0.1.2",
+    "version": "0.2.0",
     "type": "module",
     "main": "dist/index.mjs",
     "module": "src/index.mjs",
@@ -76,7 +76,7 @@
         "@environment-safe/chai": "^0.1.0",
         "@environment-safe/commonjs-builder": "^0.0.3",
         "@environment-safe/jsdoc-builder": "^0.0.2",
-        "@open-automaton/moka": "^0.4.1",
+        "@open-automaton/moka": "^0.4.2",
         "babel-plugin-search-and-replace": "^1.1.1",
         "babel-plugin-transform-import-meta": "^2.2.0",
         "chai": "^4.3.7",
@@ -88,7 +88,7 @@
     "scripts": {
         "lint": "./node_modules/.bin/eslint src/*.mjs test/*.mjs",
         "test": "npm run import-test; npm run browser-test; npm run require-test",
-        "import-test": "./node_modules/.bin/mocha test/test.mjs",
+        "import-test": "moka test/test.mjs",
         "import-file-test": "moka --file test/test.html --browser safari file://$(pwd)/test/test.mjs",
         "browser-file-test": "moka --verbose --file test/test.html --local-browser file://$(pwd)/test/test.mjs",
         "require-test": "./node_modules/.bin/mocha test/test.cjs",

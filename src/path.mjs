@@ -144,6 +144,13 @@ export class Path{
     static join(...parts){
         return join(osName, ...parts);
     }
+    
+    static parent(path){
+        const newPath = new Path(path);
+        if(newPath.parsed && newPath.parsed.posix) return newPath.parsed.posix.dir;
+        if(newPath.parsed && newPath.parsed.windows) return newPath.parsed.windows.dir;
+        //TODO: handle link reference
+    }
      
     constructor(url){
         const result = {};
