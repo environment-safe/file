@@ -36,6 +36,16 @@ if(isBrowser || isJsDom){
     };
     const enc = new TextEncoder();
     const dec = new TextDecoder(); //'utf-8'
+    InternalBuffer.fromDataURI = async (url)=>{
+        if(typeof url === 'string' && url.startsWith('data:')){
+            const result = await fetch(url);
+            const buffer = await result.arrayBuffer();
+            return buffer;
+        }else{
+            throw new Error('not a data uri');
+        }
+    };
+    InternalBuffer.fromDataURL = InternalBuffer.fromDataURI;
     InternalBuffer.from = (ob)=>{
         const type = Array.isArray(ob)?'array':(typeof ob);
         if(InternalBuffer.is(ob)){
@@ -66,17 +76,30 @@ if(isBrowser || isJsDom){
                 result = toBinString(Uint8Array.from(buffer));
                 break;
             case 'base64':
-                result = btoa(InternalBuffer.to('binary-string', buffer));
+                var binary = '';
+                var bytes = new Uint8Array( buffer );
+                var len = bytes.byteLength;
+                for (var i = 0; i < len; i++) {
+                    binary += String.fromCharCode( bytes[ i ] );
+                }
+                result = btoa( binary );
                 break;
         }
         return result;
     };
     InternalBuffer.toString = (type, buffer)=>{
         let result = null;
-        if(type === 'base64'){
-            result = InternalBuffer.to(type, buffer);;
-        }else{
-            result = InternalBuffer.to('string', buffer);
+        switch(type){
+            case 'hex':
+                result = Array.prototype.map.call(
+                    new Uint8Array(buffer),
+                    x => ('00' + x.toString(16)).slice(-2)
+                ).join('').match(/[a-fA-F0-9]{2}/g).join('');
+                break;
+            case 'base64':
+                result = InternalBuffer.to(type, buffer);
+                break;
+            default: result = InternalBuffer.to('string', buffer);
         }
         return result;
     };
@@ -87,6 +110,7 @@ if(isBrowser || isJsDom){
                 result[lcv] = fill;
             }
         }
+        return result;
         //todo: convert encoding to byte offset
     };
 }else{
@@ -99,6 +123,16 @@ if(isBrowser || isJsDom){
     InternalBuffer.is = (buffer)=>{
         return Buffer.isBuffer(buffer);
     };
+    InternalBuffer.fromDataURI = async (url)=>{
+        if(typeof url === 'string' && url.startsWith('data:')){
+            const result = await fetch(url);
+            const buffer = await result.arrayBuffer();
+            return buffer;
+        }else{
+            throw new Error('not a data uri');
+        }
+    };
+    InternalBuffer.fromDataURL = InternalBuffer.fromDataURI;
     //InternalBuffer = Buffer;
     InternalBuffer.to = (type, buffer)=>{
         switch(type){
@@ -109,7 +143,7 @@ if(isBrowser || isJsDom){
             case 'string':
                 return buffer.toString();
             case 'base64':
-                return btoa(buffer.toString());
+                return buffer.toString('base64');
             case '':
             
         }
@@ -119,5 +153,18 @@ if(isBrowser || isJsDom){
         return InternalBuffer.to('string', buffer);
     };
 }
+InternalBuffer.stringify = (buffer, indent='  ', lineIndent='', lineSize=80)=>{
+    let pos = 0;
+    return InternalBuffer.toString('hex', buffer).split('').map((value, index)=>{
+        const chars = (pos%2 === 0 && pos !== 0)?indent+value:value
+        if(pos + chars.length > lineSize){
+            const add = lineIndent+value;
+            pos = add.length;
+            return '\n'+add;
+        }
+        pos += chars.length;
+        return chars;
+    }).join('');
+};
 
 export const FileBuffer = InternalBuffer;

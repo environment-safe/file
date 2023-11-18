@@ -131,33 +131,50 @@ const internalCache = {};
 
 const mimeTypes = [
     {
-        check: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
-        mime: 'image/png'
+        check: [0x89, 0x50, 0x4e, 0x47],
+        mime: 'image/png',
+        types: ['png']
     },
     {
         check: [0xff, 0xd8, 0xff],
-        mime: 'image/jpeg'
+        mime: 'image/jpeg',
+        types: ['jpg', 'jpeg']
     },
     {
         check: [0x47, 0x49, 0x46, 0x38],
-        mime: 'image/gif'
+        mime: 'image/gif',
+        types: ['gif']
     }
 ];
+const textMimeTypes = [
+    'text/plain'
+]
 
 const checkOne = (headers)=>{
-    return (buffers, options = { offset: 0 }) =>
-        headers.every(
-            (header, index) => header === buffers[options.offset + index]
-        );
+    return (buffers, options = { offset: 0 }) =>{
+        const array = new Uint8Array(buffers);
+        return headers.reduce((agg, value, index)=>{
+            return agg && value === array[options.offset + index]
+        }, true);
+    }
 };
 
 const checks = {};
 
+const mimeFromType = (path)=>{
+    const fileType = path.split('.').pop().toLowerCase();
+    const result = mimeTypes.reduce((agg, type)=>{
+        return agg || (type.types.indexOf(fileType) !== -1 && fileType)
+    }, false);
+    return result;
+};
+
 const mimeFromBuffer = (buffer)=>{
-    return mimeTypes.reduce((agg, type)=>{
+    const result = mimeTypes.reduce((agg, type)=>{
         if(!checks[type.check]) checks[type.check] = checkOne(type.check);
         return agg || (checks[type.check](buffer) && type.mime)
     }, false);
+    return result;
 };
 
 export class File{
@@ -170,7 +187,11 @@ export class File{
         this.options = options;
         //one of: desktop, documents, downloads, music, pictures, videos
         this.directory = options.directory || '.';
-        this.path = location;
+        if(location.startsWith('data:')){
+            this.dataURI = location;
+        }else{
+            this.path = location;
+        }
         this.setBuffer(FileBuffer.from(''));
     }
     
@@ -188,8 +209,14 @@ export class File{
     }
     
     async load(){
-        this.setBuffer(await read(this.path, this.options));
-        return this;
+        if(this.path){
+            const input = await read(this.path, this.options);
+            this.setBuffer(input);
+            return this;
+        }
+        if(this.dataURI){
+            this.setBuffer(await FileBuffer.fromDataURI(this.dataURI));
+        }
     }
     
     body(value){
@@ -207,13 +234,21 @@ export class File{
         return this.derivedMIMEType;
     }
     
+    isText(){
+        return textMimeTypes.indexOf(this.mimeType()) !== -1
+    }
+    
     format(){
         if(!this.derivedMIMEType) this.mimeType();
         return File.deriveFormat(this.derivedMIMEType);
     }
     
     toDataURL(){
-        return `data:${this.mimeType()};${this.format()},${FileBuffer.toString('base64', this.body())}`
+        if(this.isText()){
+            return `data:${this.mimeType()};${this.format()},${FileBuffer.toString('string', this.body())}`
+        }else{
+            return `data:${this.mimeType()};${this.format()},${FileBuffer.toString('base64', this.body())}`
+        }
     }
     
     async info(){
@@ -244,6 +279,20 @@ export class File{
     
     static async exists(path, directory){
         return await exists(path, directory);
+    }
+    
+    static async similarity(fileA, fileB, strict){
+        //*
+        if(strict && fileA.buffer.byteLength !== fileB.buffer.byteLength){
+            throw new Error(`File lengths do not match! (${fileA.buffer.byteLength} != ${fileB.buffer.byteLength})`);
+        } //*/
+        const size = fileA.buffer.byteLength;
+        let total = 0;
+        let lcv=0;
+        for(lcv=0; lcv<size; lcv++){
+            if(fileA[lcv] === fileB[lcv]) total++;
+        }
+        return total/size;
     }
     
     static async list(path, options){

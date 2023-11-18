@@ -1,6 +1,6 @@
 {
     "name": "@environment-safe/file",
-    "version": "0.2.1",
+    "version": "0.3.0",
     "type": "module",
     "main": "dist/index.mjs",
     "module": "src/index.mjs",
@@ -65,6 +65,7 @@
         "shims": {
             "chai": "node_modules/chai/chai.js",
             "@environment-safe/runtime-context": "node_modules/@environment-safe/runtime-context/./src/index.mjs",
+            "@environment-safe/file": "./src/index.mjs",
             "browser-or-node": "node_modules/browser-or-node/src/index.js"
         }
     },

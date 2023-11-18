@@ -16,6 +16,7 @@ const ensureRequire = ()=> (!internalRequire) && (internalRequire = mod.createRe
 // and we now have 4 an obvious indicator that we went wrong? (win, unix, file, known dirs)
  
 import { FileBuffer } from './buffer.mjs';
+import { File } from './index.mjs';
 import * as fs from 'fs';
 import { 
     isClient // is running a client
@@ -331,7 +332,9 @@ export const serverFile = {
                 const url = parsed.toUrl('native');
                 return await new Promise((resolve, reject)=>{
                     fs.readFile(url, (err, buffer)=>{
-                        if(err) return reject(err);
+                        if(err){
+                            reject(new Error(`File not found('${path}')`));
+                        }
                         resolve(buffer);
                     });
                 });
@@ -342,15 +345,17 @@ export const serverFile = {
                 return await new Promise((resolve, reject)=>{
                     fs.writeFile(url, buffer, (err)=>{
                         if(err) return reject(err);
-                        if(globalThis.handleWrite) globalThis.handleWrite({
-                            path,
-                            url,
-                            buffer,
-                            text: ()=>{
-                                return FileBuffer.toString('string', buffer)
-                            },
-                            arrayBuffer: ()=> buffer,
-                        }); 
+                        if(globalThis.handleWrite){
+                            globalThis.handleWrite({
+                                path,
+                                url,
+                                buffer,
+                                text: ()=>{
+                                    return FileBuffer.toString('string', buffer)
+                                },
+                                arrayBuffer: ()=> buffer,
+                            }); 
+                        }
                         resolve();
                     });
                 });
@@ -431,14 +436,15 @@ export const remote = {
             },
             read: async (path, options={})=>{
                 const response = await fetch(path);
+                if(response.status === 404) throw new Error(`File not found('${path}')`)
                 return await response.arrayBuffer();
             },
             write: async (path, buffer, options={})=>{
                 return await new Promise((resolve, reject)=>{
                     try{
                         var element = document.createElement('a');
-                        const type = options.mimeType || 'text/plain';
-                        const format = options.format || 'charset=utf-8';
+                        const type = options.mimeType || File.deriveMIMEType(buffer);
+                        const format = options.format || File.deriveFormat(type);
                         const representation = (
                             type === 'text/plain'?
                             FileBuffer.toString('text', buffer):
