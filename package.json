@@ -1,6 +1,6 @@
 {
     "name": "@environment-safe/file",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "type": "module",
     "main": "dist/index.mjs",
     "module": "src/index.mjs",
@@ -77,7 +77,7 @@
         "@environment-safe/chai": "^0.1.0",
         "@environment-safe/commonjs-builder": "^0.0.3",
         "@environment-safe/jsdoc-builder": "^0.0.2",
-        "@open-automaton/moka": "^0.5.0",
+        "@open-automaton/moka": "^0.5.1",
         "babel-plugin-search-and-replace": "^1.1.1",
         "babel-plugin-transform-import-meta": "^2.2.0",
         "chai": "^4.3.7",
@@ -110,6 +110,7 @@
         "container-test": "docker build . -t environment-safe-package.json -f ./containers/test.dockerfile; docker logs --follow \"$(docker run -d environment-safe-package.json)\"",
         "build-docs": "build-jsdoc docs",
         "build-types": "build-jsdoc types",
+        "link-local-moka":"npm link ../../@open-automaton/moka; cd ../../@open-automaton/moka; npm link ../../@environment-safe/file",
         "add-generated-files-to-commit": "git add docs/*.md; git add src/*.d.ts; git add dist/*.cjs",
         "prepare": "husky install"
     },

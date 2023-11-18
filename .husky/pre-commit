@@ -4,6 +4,7 @@
 npm run lint
 npm run path-test
 npm run headless-browser-path-test
+npm run link-local-moka
 npm run import-test
 npm run headless-browser-test
 #npm run build-commonjs

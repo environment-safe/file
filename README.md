@@ -111,3 +111,5 @@ All work is done in the .mjs files and will be transpiled on commit to commonjs 
 
 If the above tests pass, then attempt a commit which will generate .d.ts files alongside the `src` files and commonjs classes in `dist`
 
+In order to run the `import-test`, you must link the local `moka`, which can be done with `npm run link-local-moka` This is normally solved via dependency hoisting except in the case where you are developing on the file API which has a circular dependency with `moka`.
+
