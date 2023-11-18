@@ -67,7 +67,7 @@ Roadmap
 -------
 
 - [x] - test existing suite in mac node
-- [ ] - test existing suite in in chrome + server
+- [x] - test existing suite in in chrome + server
 - [ ] - test existing suite in in chrome + file
 - [ ] - test existing suite in windows node
 - [ ] - test existing suite in linux node
