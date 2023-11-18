@@ -1,8 +1,7 @@
 /* global describe:false */
-import { isServer } from '@environment-safe/runtime-context';
 import { chai } from '@environment-safe/chai';
 import { it, configure, interactive, isInteractive } from '@open-automaton/moka';
-import { File, Path, Download, FileBuffer } from '../src/index.mjs';
+import { File, Path, Download } from '../src/index.mjs';
 const should = chai.should();
 
 describe('@environment-safe/file', ()=>{
@@ -18,9 +17,6 @@ describe('@environment-safe/file', ()=>{
         const fileRelativeSaveName = Path.join(Path.location('downloads'), 'index.mjs');
         const missingFileRelativeName = Path.join('..', 'src', 'unknown.mjs');
         const download = new Download();
-        if(isServer){
-            
-        }
         configure({
             dialog : async (context, actions)=> await actions.confirm(), // OK everything,
             wantsInput : async (context, actions)=> await actions.click('#mocha'), // click everything
@@ -162,7 +158,7 @@ describe('@environment-safe/file', ()=>{
                 const file = new File('./woo.png');
                 await file.load();
             }catch(ex){
-                ex.message.should.equal("File not found('./woo.png')");
+                ex.message.should.equal('File not found(\'./woo.png\')');
                 return;
             }
             should.not.exist(true, 'file did not error on load');

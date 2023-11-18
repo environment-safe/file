@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-#npm run lint
+npm run lint
 npm run path-test
 npm run headless-browser-path-test
-#npm run import-test
+npm run import-test
 npm run headless-browser-test
 #npm run build-commonjs
 #npm run require-test

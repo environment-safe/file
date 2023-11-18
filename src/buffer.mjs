@@ -26,7 +26,7 @@ const base64ToArrayBuffer = (base64)=>{
         bytes[i] = binaryString.charCodeAt(i);
     }
     return bytes.buffer;
-}
+};
 
 if(isBrowser || isJsDom){
     InternalBuffer = function(value, type){
@@ -56,7 +56,6 @@ if(isBrowser || isJsDom){
             case 'array':
             case 'string':
                 return enc.encode(ob).buffer;
-                break;
             case '':
         }
     };
@@ -115,7 +114,7 @@ if(isBrowser || isJsDom){
     };
 }else{
     InternalBuffer = function(value, type){
-        return new Buffer(value, type)
+        return new Buffer(value, type);
     };
     InternalBuffer.from = (ob='')=>{
         return Buffer.from(ob);
@@ -156,7 +155,7 @@ if(isBrowser || isJsDom){
 InternalBuffer.stringify = (buffer, indent='  ', lineIndent='', lineSize=80)=>{
     let pos = 0;
     return InternalBuffer.toString('hex', buffer).split('').map((value, index)=>{
-        const chars = (pos%2 === 0 && pos !== 0)?indent+value:value
+        const chars = (pos%2 === 0 && pos !== 0)?indent+value:value;
         if(pos + chars.length > lineSize){
             const add = lineIndent+value;
             pos = add.length;

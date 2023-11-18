@@ -351,7 +351,7 @@ export const serverFile = {
                                 url,
                                 buffer,
                                 text: ()=>{
-                                    return FileBuffer.toString('string', buffer)
+                                    return FileBuffer.toString('string', buffer);
                                 },
                                 arrayBuffer: ()=> buffer,
                             }); 
@@ -436,7 +436,7 @@ export const remote = {
             },
             read: async (path, options={})=>{
                 const response = await fetch(path);
-                if(response.status === 404) throw new Error(`File not found('${path}')`)
+                if(response.status === 404) throw new Error(`File not found('${path}')`);
                 return await response.arrayBuffer();
             },
             write: async (path, buffer, options={})=>{
@@ -447,8 +447,8 @@ export const remote = {
                         const format = options.format || File.deriveFormat(type);
                         const representation = (
                             type === 'text/plain'?
-                            FileBuffer.toString('text', buffer):
-                            FileBuffer.toString('base64', buffer)
+                                FileBuffer.toString('text', buffer):
+                                FileBuffer.toString('base64', buffer)
                         );
                         const dataURI = `data:${type};${format},${representation}`;
                         element.setAttribute('href', dataURI);
