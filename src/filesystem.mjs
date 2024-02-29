@@ -343,7 +343,8 @@ export const serverFile = {
                 const parsed = new Path(path);
                 const url = parsed.toUrl('native');
                 return await new Promise((resolve, reject)=>{
-                    fs.writeFile(url, buffer, (err)=>{
+                    const outBuffer = (buffer.constructor.name === 'ArrayBuffer')?FileBuffer.from(buffer):buffer;
+                    fs.writeFile(url, outBuffer, (err)=>{
                         if(err) return reject(err);
                         if(globalThis.handleWrite){
                             globalThis.handleWrite({
@@ -354,7 +355,7 @@ export const serverFile = {
                                     return FileBuffer.toString('string', buffer);
                                 },
                                 arrayBuffer: ()=> buffer,
-                            }); 
+                            });
                         }
                         resolve();
                     });

@@ -142,7 +142,17 @@ if(isBrowser || isJsDom){
             case 'string':
                 return buffer.toString();
             case 'base64':
-                return buffer.toString('base64');
+                if(buffer.constructor.name === 'ArrayBuffer'){
+                    return btoa([].reduce.call(
+                        new Uint8Array(buffer),
+                        function(p,c){
+                            return p+String.fromCharCode(c);
+                        },
+                        ''
+                    ));
+                }else{
+                    return buffer.toString('base64');
+                }
             case '':
             
         }

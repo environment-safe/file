@@ -27,8 +27,14 @@ let remote=null;
 
 export const initialized = async (path, options={})=>{
     if(isServer){
-        if(serverFile) return;
-        serverFile = await sf.initialize();
+        if(path.indexOf('://') !== -1){
+            if(remote) return;
+            //remote url
+            remote = await r.initialize();
+        }else{
+            if(serverFile) return;
+            serverFile = await sf.initialize();
+        }
     }else{
         if(isLocalFileRoot){
             if(file) return;
@@ -70,7 +76,11 @@ export const act = async (action, ...args)=>{
     const options = args[1] || {};
     await initialized(path, options);
     if(isServer){
-        return serverFile[action].apply(serverFile, args);
+        if(path.indexOf('://') !== -1){
+            return remote[action].apply(remote, args);
+        }else{
+            return serverFile[action].apply(serverFile, args);
+        }
     }else{
         if(isLocalFileRoot){
             return file[action].apply(file, args);
