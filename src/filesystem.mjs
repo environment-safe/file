@@ -22,6 +22,7 @@ import {
     isClient // is running a client
 } from '@environment-safe/runtime-context';
 import { Path } from './path.mjs';
+import * as nodestream from 'node:stream';
 //TODO: Streaming
 //TODO: browser filesystem contexts
 
@@ -252,6 +253,17 @@ export const localFile = {
                     return false;
                 }
             },
+            readstream: async (path, options={})=>{
+                try{
+                    const handle = await fileHandle(path, options);
+                    const file = await handle.getFile();
+                    const result = (await file.body);
+                    return result;
+                }catch(ex){
+                    console.log(ex);
+                    return false;
+                }
+            },
             write: async (path, buffer, options={})=>{
                 try{
                     options.isWritable = true;
@@ -335,9 +347,28 @@ export const serverFile = {
                         if(err){
                             reject(new Error(`File not found('${path}')`));
                         }
+                        /*
+                        if(globalThis.handleDownload){
+                            const base64 = ()=> FileBuffer.to('base64', buffer);
+                            console.log('SAVE HD')
+                            globalThis.handleDownload({
+                                path: ()=> '${path}',
+                                text: ()=> atob(base64()),
+                                base64: ()=> base64(),
+                                arrayBuffer: ()=> binToArrayBuffer(atob(base64())),
+                                raw: ()=> atob(base64())
+                            });
+                        } //*/
                         resolve(buffer);
                     });
                 });
+            },
+            readstream: async (path, options={})=>{
+                const parsed = new Path(path);
+                const url = parsed.toUrl('native');
+                const nodeReadable = fs.createReadStream(url, {encoding: 'utf-8'});
+                const webReadableStream = nodestream.Readable.toWeb(nodeReadable);
+                return webReadableStream;
             },
             write: async (path, buffer, options={})=>{
                 const parsed = new Path(path);
@@ -399,7 +430,12 @@ export const file = { //using a file url uses different rules
             read: async (path, options={})=>{
                 const url = (new Path(path)).toUrl(options.type);
                 const response = await fetch(url);
-                return await response.json();
+                return await response.body.getReader();
+            },
+            readstream: async (path, options={})=>{
+                const url = (new Path(path)).toUrl(options.type);
+                const response = await fetch(url);
+                return await response.body;
             },
             write: async (path, buffer, options={})=>{
                 throw new Error('Unsupported');
@@ -439,6 +475,11 @@ export const remote = {
                 const response = await fetch(path);
                 if(response.status === 404) throw new Error(`File not found('${path}')`);
                 return await response.arrayBuffer();
+            },
+            readstream: async (path, options={})=>{
+                const response = await fetch(path);
+                if(response.status === 404) throw new Error(`File not found('${path}')`);
+                return await response.body.getReader();
             },
             write: async (path, buffer, options={})=>{
                 return await new Promise((resolve, reject)=>{

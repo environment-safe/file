@@ -117,6 +117,24 @@ describe('@environment-safe/file', ()=>{
             file.body().cast('string').length.should.be.above(1);
         });
         
+        it('streams an explicit, relative URL', async function(){
+            //const file = 
+            new File(Path.join(
+                '../node_modules/@environment-safe/chai',
+                'README.md'
+            ));
+            //const stream = await file.stream();
+            //stream.on('data', (data)=>{ console.log('>>', data); });
+            /*
+            console.log(stream)
+            const reader = stream.getReader();
+            reader.read().then(({ done, value }) => {
+                const firstLine = value.split('\n').shift();
+                firstLine.should.equal('environment-safe-chai');
+            });
+            //*/
+        });
+        
         it('loads itself as data when text', async function(){
             const file = new File(Path.join(
                 '../node_modules/@environment-safe/chai',

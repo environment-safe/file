@@ -22,6 +22,9 @@ If you want absolute URLs to work (raw, file://, etc.), you must include a base 
 </html>
 ```
 
+To import the various 
+
+
 ### listing
 
 You can list contents from an arbitrary location or from one of a few predefined locations (`desktop`, `documents`, `downloads`, `music`, `pictures`, `videos`). For example to list all the files in your `documents` directory:
@@ -60,6 +63,13 @@ You can load a file directly from a fully specified path:
 const file = new File('/Users/me/file.ext');
 ```
 
+You can stream a file:
+
+```javascript
+const stream = (new File('foo.bar')).stream();
+```
+Which returns a [WebStream](https://vercel.com/blog/an-introduction-to-streaming-on-the-web) in both [node.js](https://nodejs.org/api/webstreams.html) and the [browser](https://developer.mozilla.org/en-US/docs/Web/API/Streams_API) which are fully compatible with [@environment-safe/stream]()
+
 Other scenarios may work in isolated circumstances, but are not supported client/server.
 
 
@@ -68,7 +78,8 @@ Roadmap
 
 - [x] - test existing suite in mac node
 - [x] - test existing suite in in chrome + server
-- [ ] - test existing suite in in chrome + file
+- [x] - test existing suite in in chrome + file
+- [x] - streaming support
 - [ ] - test existing suite in windows node
 - [ ] - test existing suite in linux node
 - [ ] - safari directory returns
@@ -76,7 +87,6 @@ Roadmap
 - [ ] - edge directory returns
 - [ ] - apache directory returns
 - [ ] - opera directory returns
-- [ ] - streaming support
 
 Testing
 -------

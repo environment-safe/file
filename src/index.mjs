@@ -137,6 +137,10 @@ export const remove = async (path)=>{
     return await act('delete', path);
 };
 
+export const stream = async (path)=>{
+    return await act('readstream', path);
+};
+
 const internalCache = {};
 
 const mimeTypes = [
@@ -216,6 +220,18 @@ export class File{
         this.buffer.cast = (type)=>{
             return FileBuffer.to(type, this.buffer);
         };
+    }
+    
+    async stream(){
+        if(this.path){
+            const input = await stream(this.path, this.options);
+            return input;
+        }
+        /*//todo
+        if(this.dataURI){
+            this.setBuffer(await FileBuffer.fromDataURI(this.dataURI));
+        }
+        //*/
     }
     
     async load(){
@@ -337,13 +353,12 @@ export class Download{
     }
 }
 
-const saveListeners = [];
+if(!globalThis.es_fileSaveListeners) globalThis.es_fileSaveListeners = [];
 export const addEventListener = (event, handler) =>{
     //TODO: support more than save
     if(event !== 'write') throw new Error('unsupported');
-    saveListeners.push(handler);
+    globalThis.es_fileSaveListeners.push(handler);
 };
-
 
 
 (()=>{
@@ -354,7 +369,7 @@ export const addEventListener = (event, handler) =>{
         await download.saveAs(path);
     };
     globalThis.handleWrite = async (save)=>{
-        saveListeners.forEach((handler)=>{
+        globalThis.es_fileSaveListeners.forEach((handler)=>{
             handler(save);
         });
     };
