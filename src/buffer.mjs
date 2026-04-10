@@ -15,7 +15,7 @@ const ensureRequire = ()=> (!internalRequire) && (internalRequire = mod.createRe
  
 // TODO: make this live in streams
 
-import { isBrowser, isJsDom } from 'browser-or-node';
+import { isBrowser, isJsDom } from '@environment-safe/runtime-context';
 
 let InternalBuffer = null;
 
