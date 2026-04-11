@@ -61,6 +61,7 @@
             "fs",
             "stream",
             "node:stream",
+            "node:os",
             "os",
             "path"
         ],
