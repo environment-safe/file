@@ -1,6 +1,6 @@
 {
     "name": "@environment-safe/file",
-    "version": "0.4.2",
+    "version": "0.4.3",
     "type": "module",
     "main": "dist/index.mjs",
     "module": "src/index.mjs",
@@ -118,7 +118,7 @@
     },
     "dependencies": {
         "@environment-safe/package": "^0.2.0",
-        "@environment-safe/runtime-context": "^0.0.5",
+        "@environment-safe/runtime-context": "^0.0.6",
         "typescript": "^5.2.2"
     }
 }
